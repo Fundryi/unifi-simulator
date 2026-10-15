@@ -17,7 +17,16 @@ from mtunifi.telemetry import inform
 def main() -> int:
     parser = argparse.ArgumentParser(description="Experimental synthetic UniFi switch emulator")
     parser.add_argument(
-        "command", choices=("init", "sample", "run", "diagnose", "health", "validate-scenario")
+        "command",
+        choices=(
+            "init",
+            "sample",
+            "run",
+            "diagnose",
+            "health",
+            "validate-scenario",
+            "reset-adoption",
+        ),
     )
     parser.add_argument("--once", action="store_true", help="Run one inform; nonzero on failure")
     args = parser.parse_args()
@@ -40,6 +49,25 @@ def main() -> int:
             )
             return 0
         store = Store(settings.state_dir)
+        if args.command == "reset-adoption":
+            with store.lock():
+                state = store.load()  # Never manufacture an identity when resetting missing state.
+                if state.controller_url not in (None, settings.inform_url):
+                    raise RuntimeError("State belongs to another controller")
+                state.reset_adoption()
+                store.save(state)
+                print(
+                    json.dumps(
+                        {
+                            "event": "adoption_reset",
+                            "reason": "operator",
+                            "mac": state.mac,
+                            "phase": state.phase,
+                            "has_private_key": False,
+                        }
+                    )
+                )
+            return 0
         if args.command in ("diagnose", "health"):
             state = store.load()
             age = time.time() - state.last_inform if state.last_inform else None

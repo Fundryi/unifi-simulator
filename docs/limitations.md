@@ -19,8 +19,10 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
 - Client/LLDP API presence does not prove topology graph or traffic-chart UI rendering.
 - No UDP 10001 discovery, inbound SSH adoption, STUN or remote shell.
 - Snappy and packet/data versions outside the documented subset are rejected.
-- Controller system configuration, upgrades, reset and commands are ignored.
+- Controller system configuration, upgrades, reboot and executable commands are ignored.
   The controller can keep provisioning/retrying if it requires those effects.
+- Private-key `setdefault` resets only local adoption metadata. Offline deletion
+  in the controller requires explicit `reset-adoption`; HTTP 400 never clears keys.
 - Echoed cfgversion indicates receipt only; it cannot enforce a real switch configuration.
 - Persistent state stores a private protocol key in plaintext in a mode-0600 file.
   Protect volume backups and filesystem access. Initial bootstrap is publicly decryptable;

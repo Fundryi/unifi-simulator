@@ -80,6 +80,46 @@ MTUNIFI_ALLOW_CONTROLLER_TEST=yes uv run --frozen --extra dev pytest -q -s -m co
 It requires the exported URL and state directory above. A pass means only a valid
 encrypted response was received. UI adoption and sustained connection are manual checks.
 
+## Re-adopt a device deleted from the controller
+
+Deleting/forgetting a device in UniFi does not erase the private adoption key in
+the simulator's persistent volume. If the simulator was offline during deletion,
+it can keep sending `exchanging` / GCM informs with that old key and receive HTTP
+400 without appearing as Ready to Adopt. This differs from the DNS payload issue
+below: rebuilding an image deliberately preserves adoption state.
+
+After deliberately deleting the device in UniFi, reset only its local adoption
+metadata. For the two-project LinuxServer lab, start in the repository root:
+
+```sh
+git pull
+cd deploy/lab
+docker compose -f compose.simulator.yml stop emulator
+docker compose -f compose.simulator.yml build emulator
+docker compose -f compose.simulator.yml run --rm --no-deps emulator reset-adoption
+docker compose -f compose.simulator.yml up -d --force-recreate emulator
+docker compose -f compose.simulator.yml logs -f emulator
+```
+
+The reset preserves the MAC, controller URL binding, scenario and diagnostic
+snapshot. It clears the private key, cfgversion and adoption phase. Keep the existing
+`.env` and volume; do not use `down -v`. The command requires an existing identity
+and exclusive access: it refuses to reset state while an emulator holds its lock.
+For the root Compose file, use the same stop/build/run/up sequence without `-f`.
+
+With the default lab settings, the next request reports `phase=factory`,
+`encryption=cbc`, `default=true`, `has_private_key=false`. HTTP 404 can accompany
+pending discovery. Choose Adopt for the same MAC; expect `setparam`, a new private
+key, GCM and successful `noop` exchanges. Verify Connected in the controller.
+
+The emulator also honors `setdefault` decoded with its current private key, resetting
+only local adoption metadata. A device forgotten while offline may never receive
+that instruction. HTTP 400 alone never triggers an automatic reset or key fallback;
+it can indicate other errors. Use the explicit command only when re-adoption is intended.
+
+`inform_request` logs the configured controller URL, advertised IPv4 inform URL,
+phase, cipher, default flag and key-presence flag. No key or raw payload is logged.
+
 ## Failure diagnosis and unresolved handshake
 
 - Connection errors: verify controller service, DNS/routing and TCP 8080. Container
@@ -106,6 +146,8 @@ encrypted response was received. UI adoption and sustained connection are manual
   the identity to apply this fix. Leave Inform Host Override unset for the initial
   experiment; if needed, use the controller's reachable **IPv4 address**, not its
   Docker DNS hostname. The emulator does not apply controller-selected URL changes.
+- **HTTP 400 in exchanging/key-received after deleting the device:** follow the
+  re-adoption procedure above; retaining the old private key prevents bootstrap discovery.
 - Other HTTP 400 / decrypt failures: record packet version and encryption. Try a fresh
   disposable identity separately with packet version 0, or initial GCM, one variable
   at a time. Never force bootstrap fallback for an adopted identity or borrow real keys.

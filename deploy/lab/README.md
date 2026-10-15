@@ -136,6 +136,8 @@ Keep controller and simulator data together to preserve their adoption relations
 For database startup failures inspect `logs unifi-db`; ensure passwords were set before
 the first volume initialization. Do not publish 27017 to troubleshoot. For simulator
 HTTP 400/404 or stalled adoption, see [protocol diagnosis](../../docs/adoption.md).
+If you deleted an adopted device in UniFi, use the documented `reset-adoption`
+procedure to preserve its MAC and scenario while removing the obsolete adoption key.
 If an existing network was created manually or by another project with the same name,
 choose a different UNIFI_LAB_NETWORK; the controller project must own its bridge.
 

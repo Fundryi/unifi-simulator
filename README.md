@@ -42,6 +42,8 @@ a recent valid inform response, with no subsequent error; it cannot prove adopti
 For synthetic ports/traffic/client/LLDP scenarios, hot reload and upgrading an existing
 adopted device, see [Milestone 1 telemetry](docs/synthetic-telemetry.md).
 The lab Compose now selects the demo scenario by default and preserves adoption state.
+If you deleted the device in UniFi and now see GCM `exchanging` with HTTP 400,
+follow [re-adoption without changing MAC](docs/adoption.md#re-adopt-a-device-deleted-from-the-controller).
 
 For a **complete local test environment using LinuxServer UniFi Network + authenticated
 MongoDB**, use [deploy/lab](deploy/lab/README.md). It provides two separate Compose projects
@@ -82,7 +84,8 @@ tests are opt-in; the ordinary test suite never contacts UniFi or MikroTik equip
 
 Configuration -> synthetic profile -> inform state machine -> TNBU codec -> controller.
 Atomic per-device state stores identity and the controller-issued private key. The only
-accepted provisioning effects are emulator metadata (key, encryption, cfgversion).
+accepted provisioning effects are emulator metadata (key, encryption, cfgversion)
+and a private-key `setdefault` reset of local adoption metadata.
 Raw configuration and controller commands are safely ignored. No shell execution,
 firmware download, RouterOS writes, external database or management web endpoint exists.
 

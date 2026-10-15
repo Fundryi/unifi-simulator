@@ -29,7 +29,9 @@ Docker DNS updates without binding an identity permanently to a transient contai
 The private adoption key is issued by the controller and persisted. No TLS/SSH device
 keypair is generated because the implemented outbound protocol does not use one.
 The public bootstrap constant is used only before receiving a private key. There is
-no key downgrade fallback. HTTP redirects and proxy-environment routing are disabled
+no key downgrade fallback on HTTP errors. The explicit `reset-adoption` command or
+a private-key `setdefault` clears adoption metadata while retaining MAC and controller
+binding; the next inform uses bootstrap again. HTTP redirects and proxy-environment routing are disabled
 for inform traffic; HTTPS uses normal certificate validation. A trusted private CA can
 be installed in the runtime trust store; never disable certificate verification.
 

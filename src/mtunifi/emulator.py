@@ -73,6 +73,12 @@ def apply_response(state: State, response: dict) -> float | None:
             if 1 <= delay <= 300:
                 return float(delay)
         return None
+    if kind == "setdefault" and state.authkey is not None:
+        # Only called after a response decoded under this device's current private key.
+        # Forget emulator adoption metadata, never RouterOS or the synthetic scenario.
+        state.reset_adoption()
+        event("adoption_reset", reason="controller", mac=state.mac)
+        return 1
     event("unsupported_message", action="ignored")
     return None
 
@@ -85,6 +91,7 @@ class Emulator:
         self.started = time.monotonic()
         self.delay = settings.interval
         self.source = source if source is not None else SyntheticSource(settings.synthetic_file)
+        self._reset_hint_logged = False
 
     async def exchange(self, client: httpx.AsyncClient) -> bool:
         state = self.state
@@ -123,7 +130,16 @@ class Emulator:
                 scenario_status=self.source.status,
             )
             packet = encode(body, state.mac, key, mode=mode, version=self.settings.packet_version)
-            event("inform_request", bytes=len(packet), phase=state.phase, encryption=mode)
+            event(
+                "inform_request",
+                bytes=len(packet),
+                phase=state.phase,
+                encryption=mode,
+                controller_url=self.settings.inform_url,
+                advertised_inform_url=report_url,
+                default=body["default"],
+                has_private_key=state.authkey is not None,
+            )
             async with client.stream(
                 "POST",
                 self.settings.inform_url,
@@ -161,6 +177,7 @@ class Emulator:
             self.delay = delay if delay is not None else self.settings.interval
             state.last_inform = time.time()
             state.last_error = None
+            self._reset_hint_logged = False
             event("inform_success", phase=state.phase)
         except (httpx.HTTPError, ProtocolError, ScenarioError) as exc:
             # Exception strings from HTTP libraries can include URLs or credentials: never log them.
@@ -169,6 +186,20 @@ class Emulator:
             )
             self.delay = min(60, max(self.settings.interval, self.delay * 2))
             event("inform_failure", reason=state.last_error, retry_seconds=self.delay)
+            if (
+                state.authkey is not None
+                and state.last_error == "Controller HTTP 400"
+                and not self._reset_hint_logged
+            ):
+                event(
+                    "adoption_recovery_required",
+                    hint=(
+                        "Private-key inform rejected. If the device was forgotten "
+                        "in the controller, stop the emulator and run reset-adoption; "
+                        "HTTP 400 alone does not prove this."
+                    ),
+                )
+                self._reset_hint_logged = True
             self.store.save(state)
             return False
         if state.phase != previous_phase:

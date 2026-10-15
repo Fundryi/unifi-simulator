@@ -110,7 +110,12 @@ URLs, raw system configuration, SSH settings and executable commands.
 
 `cfgversion` is echoed as protocol metadata; that is **not a claim that switch
 configuration was applied**. If the controller requires real provisioning effects,
-adoption may stall. Reboot, firmware upgrade and reset are ignored, not faked.
+adoption may stall. Reboot and firmware upgrade are ignored, not faked.
+`setdefault` decoded with the current private key clears local adoption metadata,
+preserving MAC and controller binding; it never resets RouterOS or the scenario.
+The explicit `reset-adoption` CLI provides the same local reset under the exclusive
+state lock when a forgotten offline device cannot receive the controller response.
+HTTP 400 does not cause automatic bootstrap fallback.
 No RouterOS client exists in M0, so controller commands have no path to MikroTik.
 
 Requests repeat after the bounded interval (1–300 seconds), after setparam in one

@@ -45,6 +45,16 @@ class State(BaseModel):
             "controller_adoption_verified": False,
         }
 
+    def reset_adoption(self):
+        """Forget protocol credentials, keeping this emulator's MAC and controller binding."""
+        self.authkey = None
+        self.phase = "factory"
+        self.cfgversion = ""
+        self.encryption = "cbc"
+        self.last_inform = None
+        self.last_attempt = None
+        self.last_error = None
+
 
 class Store:
     def __init__(self, directory: Path):

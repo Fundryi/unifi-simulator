@@ -1,5 +1,28 @@
 # Executed validation — 2026-10-15
 
+## Re-adoption after deleting a device in 10.6.106
+
+A fresh M1 container was adopted and reached Connected. It was stopped, then its
+record was deleted through the controller's device deletion API. Restarting the
+same container and volume reproduced the user's result: GCM `exchanging`, private
+key retained, HTTP 400, and no matching device offered by the controller.
+
+The rebuilt image ran `reset-adoption` as UID 10001 against that same named volume.
+Its output retained the exact synthetic MAC and reported factory/no private key.
+The same scenario then rediscovered that MAC as pending (`state=2`, `adopted=false`).
+After Adopt, the controller reported Connected (`state=1`, `adopted=true`); diagnostic
+output showed GCM/exchanging, a private key, no error and all three synthetic clients.
+The container health command passed. No identity-file editing, manual key import,
+database writes or deletion of the state volume was used. Browser UI was not inspected.
+
+Final automated results: **95 passed, 1 skipped** (opt-in controller pytest), Ruff
+lint/format and Docker build passed. New tests check the POST `/inform` request,
+private-key HTTP 400 retention, one-time recovery hint, explicit bootstrap recovery,
+valid private GCM `setdefault` versus wrong-key rejection, exclusive reset ownership,
+MAC/telemetry preservation, missing state and controller-binding mismatch rejection.
+The `setdefault` response path was tested with an encrypted synthetic peer; reception
+of that command from a real controller was not observed in the offline deletion test.
+
 ## Milestone 1: synthetic telemetry on 10.6.106
 
 The user confirmed the M0 adoption fix in their controller. M1 was then tested against

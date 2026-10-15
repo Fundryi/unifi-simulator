@@ -66,13 +66,27 @@ def test_state_transitions_and_redaction(tmp_path, caplog):
         assert state.phase == "key-received"
         assert apply_response(state, {"_type": "noop", "interval": 30}) == 30
         assert state.phase == "exchanging"
-        for kind in ("cmd", "upgrade", "reboot", "setdefault", "secret-unknown"):
+        for kind in ("cmd", "upgrade", "reboot", "secret-unknown"):
             apply_response(state, {"_type": kind, "cmd": "HIDDEN"})
     assert state.cfgversion == "abc"
     assert state.authkey.get_secret_value() == KEY
     assert KEY not in caplog.text
     assert "HIDDEN" not in caplog.text
     assert "secret-unknown" not in caplog.text
+
+
+def test_controller_reset_only_clears_adoption_metadata(tmp_path):
+    state = Store(tmp_path).load_or_create()
+    state.controller_url = "http://controller:8080/inform"
+    mac = state.mac
+    apply_response(
+        state,
+        {"_type": "setparam", "mgmt_cfg": f"authkey={KEY}\nuse_aes_gcm=1", "cfgversion": "old"},
+    )
+    assert apply_response(state, {"_type": "setdefault"}) == 1
+    assert state.mac == mac and state.controller_url == "http://controller:8080/inform"
+    assert state.phase == "factory" and state.authkey is None and state.cfgversion == ""
+    assert state.encryption == "cbc"
 
 
 @pytest.mark.parametrize(
