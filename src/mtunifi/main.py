@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from mtunifi.config import Settings
 from mtunifi.emulator import Emulator
-from mtunifi.routeros_api import RouterOSError
+from mtunifi.routeros_api import RouterOSError, api_target
 from mtunifi.scenario import ScenarioError, SyntheticSource
 from mtunifi.sources import create_source
 from mtunifi.storage import Store
@@ -156,7 +156,7 @@ def main() -> int:
             {"reason": str(exc), "issues": exc.issues} if isinstance(exc, ScenarioError) else {}
         )
         if isinstance(exc, RouterOSError):
-            details = {"reason": str(exc)}
+            details = exc.public() | {"routeros_target": api_target(settings)}
         print(
             json.dumps(
                 {

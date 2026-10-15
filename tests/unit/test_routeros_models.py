@@ -1,4 +1,7 @@
 import asyncio
+import errno
+import socket
+import ssl
 
 import pytest
 from pydantic import ValidationError
@@ -15,6 +18,7 @@ from mtunifi.routeros_api import (
     MAX_WORD,
     RouterOSAPI,
     RouterOSError,
+    api_error,
     length_prefix,
     read_password,
     read_word,
@@ -168,3 +172,22 @@ async def test_mutating_commands_cannot_be_sent_even_through_internal_executor()
             await api._execute(command, ())
     with pytest.raises(RouterOSError, match="command-not-allowed"):
         await api.table("/interface/print")
+
+
+@pytest.mark.parametrize(
+    "exc, code",
+    [
+        (OSError(errno.EHOSTUNREACH, "PRIVATE"), "network-unreachable"),
+        (OSError(errno.ENETUNREACH, "PRIVATE"), "network-unreachable"),
+        (ConnectionResetError(errno.ECONNRESET, "PRIVATE"), "connection-reset"),
+        (BrokenPipeError(errno.EPIPE, "PRIVATE"), "connection-closed"),
+        (socket.gaierror(socket.EAI_NONAME, "PRIVATE"), "dns-resolution-failed"),
+        (TimeoutError("PRIVATE"), "timeout"),
+        (ssl.SSLError("PRIVATE"), "tls-handshake-failed"),
+        (asyncio.IncompleteReadError(b"PRIVATE", 10), "connection-closed"),
+    ],
+)
+def test_safe_network_failure_classification_and_phase(exc, code):
+    result = api_error(exc, "/login")
+    assert result.code == code and result.public()["stage"] == "/login"
+    assert "PRIVATE" not in str(result.public())

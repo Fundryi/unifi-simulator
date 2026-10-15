@@ -123,8 +123,9 @@ async def test_required_api_failure_suppresses_inform_and_keeps_adoption(routero
         assert not await app.exchange(client)
     restored = store.load()
     assert restored.mac == state.mac and restored.authkey.get_secret_value() == KEY.hex()
-    assert restored.phase == "exchanging" and restored.last_error == "RouterOS connection-failed"
+    assert restored.phase == "exchanging" and restored.last_error == "RouterOS connection-closed"
     assert store.load_telemetry()["status"] == "unavailable"
+    assert store.load_telemetry()["source_error_details"]["stage"] == "/interface/print"
 
 
 async def test_tls_untrusted_certificate_is_rejected_before_credentials(routeros_peer):
@@ -180,7 +181,40 @@ async def test_authentication_error_is_redacted_and_not_treated_as_empty_data(ro
         await source.collect(1, "")
     assert "PRIVATE-SERVER-MESSAGE" not in str(exc.value) + json.dumps(source.last_summary)
     assert source.last_summary["observations"] is None
+    assert source.last_summary["source_error_details"]["stage"] == "/login"
     assert peer.commands == [("/login",)]
+
+
+async def test_probe_cli_connection_refused_has_target_stage_and_no_secret(routeros_peer, tmp_path):
+    peer = await routeros_peer()
+    settings = peer.settings(state_dir=tmp_path / "unused")
+    peer.server.close()
+    await peer.server.wait_closed()
+    env = os.environ.copy()
+    for name, value in settings.model_dump(mode="json").items():
+        if value is not None:
+            env["MTUNIFI_" + name.upper()] = str(value)
+    process = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-m",
+        "mtunifi.main",
+        "probe-routeros",
+        env=env,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await asyncio.wait_for(process.communicate(), 15)
+    error = json.loads(stderr)
+    assert process.returncode == 2 and not stdout
+    assert error["reason"] == "RouterOS connection-refused" and error["stage"] == "connect"
+    assert error["errno"] is not None
+    assert error["routeros_target"] == {
+        "host": "127.0.0.1",
+        "port": settings.routeros_port,
+        "tls": False,
+    }
+    assert b"fixture-read-only-password" not in stdout + stderr
+    assert not settings.state_dir.exists()
 
 
 @pytest.mark.parametrize("invalid", ["-1", "", "18446744073709551616", "private-value"])

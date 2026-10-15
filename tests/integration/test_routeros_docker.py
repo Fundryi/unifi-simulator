@@ -57,13 +57,13 @@ async def test_rootless_container_routeros_source_and_gcm_restart(routeros_peer,
             writer.close()
             await writer.wait_closed()
 
-    async def docker(*args):
+    async def docker(*args, expected_status=0):
         process = await asyncio.create_subprocess_exec(
             "docker", *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         out, err = await asyncio.wait_for(process.communicate(), 30)
-        assert process.returncode == 0, err.decode()
-        return out.decode()
+        assert process.returncode == expected_status, err.decode()
+        return out.decode() if expected_status == 0 else err.decode()
 
     server = await asyncio.start_server(controller, "127.0.0.1", 0)
     args = [
@@ -114,6 +114,12 @@ async def test_rootless_container_routeros_source_and_gcm_restart(routeros_peer,
             json.loads(await docker(*args, image, "probe-routeros"))["mapped_physical_ports"] == 6
         )
         assert (await docker(*args, "--entrypoint", "id", image, "-u")).strip() == "10001"
+        peer.server.close()
+        await peer.server.wait_closed()
+        error = json.loads(await docker(*args, image, "probe-routeros", expected_status=2))
+        assert error["reason"] == "RouterOS connection-refused"
+        assert error["stage"] == ("connect-tls" if tls else "connect")
+        assert error["routeros_target"]["port"] == settings.routeros_port
     finally:
         server.close()
         await server.wait_closed()

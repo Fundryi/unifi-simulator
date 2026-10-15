@@ -1,5 +1,24 @@
 # Executed validation — latest 2026-10-16
 
+## RouterOS connection diagnostics — 2026-10-16
+
+The user reported generic `RouterOS connection-failed` during the local probe.
+They confirmed TCP connectivity from the Docker host and, using the PowerShell
+stdin test, from the simulator Compose container to 192.168.0.249:8728 with TLS=false.
+This establishes TCP reachability, not successful API authentication/collection.
+The original message does not identify the failing API stage or exact socket error.
+
+The client now classifies refusal, DNS/routing failures, reset/EOF, timeout and TLS
+errors separately and reports a safe stage, numeric errno and configured target.
+Raw exception/server text, partial responses and credentials are never included.
+Tests cover real loopback refusal through the CLI, EOF during `/interface/print`,
+authentication stage and sanitized OS error classification. Both production-image
+TCP/TLS container checks also close the fixture listener and verify the resulting
+`startup_error` contains `connection-refused`, target port and connect stage.
+Result: **162 passed, 1 skipped** with Docker opt-in; regular suite **160 passed,
+3 skipped**. Docker build and Ruff lint/format passed. The user's actual failure
+still requires a new probe result; no specific root cause is claimed yet.
+
 ## Milestone 2: RouterOS API collector — 2026-10-16
 
 The user selected an RB760iGS at 192.168.0.249:8728 running RouterOS 7.24.4 and

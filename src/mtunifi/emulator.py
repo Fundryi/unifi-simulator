@@ -8,7 +8,7 @@ from pydantic import SecretStr
 
 from mtunifi.config import Settings
 from mtunifi.protocol import BOOTSTRAP_KEY, MAX_PAYLOAD, ProtocolError, decode, encode
-from mtunifi.routeros_api import RouterOSError
+from mtunifi.routeros_api import RouterOSError, api_target
 from mtunifi.scenario import ScenarioError
 from mtunifi.sources import TelemetrySource, create_source
 from mtunifi.storage import State, Store
@@ -190,6 +190,7 @@ class Emulator:
             )
             if isinstance(exc, RouterOSError) and self.source.last_summary is not None:
                 self.store.save_telemetry(self.source.last_summary | {"updated_at": time.time()})
+                event("routeros_failure", **exc.public(), routeros_target=api_target(self.settings))
             self.delay = min(60, max(self.settings.interval, self.delay * 2))
             event("inform_failure", reason=state.last_error, retry_seconds=self.delay)
             if (

@@ -171,6 +171,57 @@ Set the existing controller/state/IP variables before `mtunifi run`. The offline
   count is `null` (not collected), rather than an invented zero. `health` also requires
   a recent successful RouterOS snapshot and valid inform; it never probes the router.
 
+## Diagnosing connection failures
+
+Older images collapse several socket failures into `RouterOS connection-failed`.
+That message alone cannot distinguish refusal, DNS/routing, a reset, or EOF during
+login/collection. Update/rebuild the simulator to obtain the specific reason, numeric
+`errno`, stage and configured target (`host`, `port`, `tls`). Neither the username,
+password, raw server error nor partial response is logged.
+
+Stages are `connect` / `connect-tls`, `credentials`, or an allowlisted API command
+such as `/login`, `/system/resource/print` or `/interface/print`. TLS CA setup failures
+use `tls-configuration`. Runtime failures also emit a safe `routeros_failure` event
+and retain these details in `diagnose`.
+
+| Reason | What to check |
+| --- | --- |
+| `connection-refused` | API service/port or a rejecting firewall rule |
+| `network-unreachable` / `dns-resolution-failed` | Container routes, LAN/VPN access, subnet collisions, DNS |
+| `connection-closed` / `connection-reset` | Stage of peer closure, selected API transport/port, service/account source restrictions, RouterOS logs |
+| `tls-handshake-failed` / `tls-verification-failed` | API-SSL port/certificate settings; do not disable certificate checks |
+| `authentication-failed` | Dedicated account with `read,api` and the local secret |
+| `timeout` | Reachability or a stalled API command; inspect the stage |
+
+A successful TCP check from the Docker host does not establish container reachability.
+From `deploy/lab`, with the emulator stopped as for the normal probe, test the same
+Compose network and effective host/port without reading credentials:
+
+```sh
+docker compose -f compose.simulator.yml -f compose.routeros.yml run --rm --no-deps \
+  --entrypoint python emulator -c 'import os,socket; h=os.environ["MTUNIFI_ROUTEROS_HOST"]; p=int(os.environ["MTUNIFI_ROUTEROS_PORT"]); print({"host":h,"port":p,"tls":os.environ["MTUNIFI_ROUTEROS_TLS"]},flush=True); s=socket.create_connection((h,p),3); print("TCP OK"); s.close()'
+```
+
+This checks only TCP, not API login. If it fails while host TCP succeeds, inspect
+Docker routing/firewall/NAT before changing credentials. If it succeeds, run the
+updated `probe-routeros` and use its stage/reason to check the API session. Share only
+the safe diagnostic output, never password files or a full rendered Compose config.
+
+In Windows PowerShell, pass the Python code on standard input to avoid native
+argument quoting removing the inner quotes from `python -c`:
+
+```powershell
+@'
+import os
+import socket
+host = os.environ["MTUNIFI_ROUTEROS_HOST"]
+port = int(os.environ["MTUNIFI_ROUTEROS_PORT"])
+print({"host": host, "port": port, "tls": os.environ["MTUNIFI_ROUTEROS_TLS"]}, flush=True)
+with socket.create_connection((host, port), timeout=3):
+    print("TCP OK")
+'@ | docker compose -f compose.simulator.yml -f compose.routeros.yml run --rm --no-deps -T --entrypoint python emulator -
+```
+
 ## Validation status
 
 The automated suite exercises actual loopback TCP API sentences, optional TLS with

@@ -1,6 +1,8 @@
 """Bounded RouterOS 7 API transport. Only the commands below can reach the wire."""
 
 import asyncio
+import errno
+import socket
 import ssl
 from enum import StrEnum
 from pathlib import Path
@@ -15,9 +17,73 @@ MAX_ROWS = 4096
 class RouterOSError(ValueError):
     """Fixed safe codes only; never include server messages or credentials."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str, *, stage: str | None = None, error_number: int | None = None):
         self.code = code
+        self.stage = stage
+        self.error_number = error_number
         super().__init__("RouterOS " + code)
+
+    def public(self) -> dict:
+        hints = {
+            "connection-refused": "Check API service/port and rejecting firewall rules",
+            "dns-resolution-failed": "Check the RouterOS hostname and container DNS",
+            "network-unreachable": "Check container routing, LAN/VPN access and firewall rules",
+            "connection-reset": "Peer reset the session; check API service and allowed source IP",
+            "connection-closed": (
+                "Peer closed the session; check API service, allowed source IP and transport/port"
+            ),
+            "tls-verification-failed": "Check trusted CA, certificate validity and hostname",
+            "tls-config-invalid": "Check CA file path, permissions and PEM contents",
+            "tls-handshake-failed": "Check API-SSL service and matching TLS/port settings",
+            "timeout": "Check reachability, API response time and the collection timeout budget",
+            "authentication-failed": "Check the read-only API account and local password file",
+            "password-file-invalid": "Check the mounted password file and UID 10001 read access",
+        }
+        return {
+            "reason": str(self),
+            "stage": self.stage,
+            "errno": self.error_number,
+            "hint": hints.get(
+                self.code, "Check RouterOS API configuration and read-only permissions"
+            ),
+        }
+
+
+def api_target(settings: Settings) -> dict:
+    # Configuration rejects credential-bearing URLs; never include username or secret paths.
+    return {
+        "host": settings.routeros_host,
+        "port": settings.routeros_port,
+        "tls": settings.routeros_tls,
+    }
+
+
+def api_error(exc: Exception, stage: str) -> RouterOSError:
+    if isinstance(exc, RouterOSError):
+        return RouterOSError(exc.code, stage=exc.stage or stage, error_number=exc.error_number)
+    if isinstance(exc, ssl.SSLCertVerificationError):
+        code = "tls-verification-failed"
+    elif isinstance(exc, ssl.SSLError):
+        code = "tls-handshake-failed"
+    elif isinstance(exc, socket.gaierror):
+        code = "dns-resolution-failed"
+    elif isinstance(exc, TimeoutError):
+        code = "timeout"
+    elif isinstance(exc, asyncio.IncompleteReadError):
+        code = "connection-closed"
+    elif isinstance(exc, OSError):
+        code = {
+            errno.ECONNREFUSED: "connection-refused",
+            errno.ECONNRESET: "connection-reset",
+            errno.EPIPE: "connection-closed",
+            errno.EHOSTUNREACH: "network-unreachable",
+            errno.ENETUNREACH: "network-unreachable",
+            errno.ETIMEDOUT: "timeout",
+        }.get(exc.errno, "connection-failed")
+    else:
+        code = "connection-failed"
+    number = exc.errno if isinstance(exc, OSError) and isinstance(exc.errno, int) else None
+    return RouterOSError(code, stage=stage, error_number=number)
 
 
 class Table(StrEnum):
@@ -92,13 +158,19 @@ class RouterOSAPI:
         self.settings = settings
         self.reader: asyncio.StreamReader | None = None
         self.writer: asyncio.StreamWriter | None = None
+        self.stage = "connect"
 
     async def __aenter__(self):
         try:
             context = None
             if self.settings.routeros_tls:
-                context = ssl.create_default_context(cafile=self.settings.routeros_ca_file)
+                self.stage = "tls-configuration"
+                try:
+                    context = ssl.create_default_context(cafile=self.settings.routeros_ca_file)
+                except (OSError, ssl.SSLError):
+                    raise RouterOSError("tls-config-invalid") from None
                 context.minimum_version = ssl.TLSVersion.TLSv1_2
+            self.stage = "connect-tls" if context else "connect"
             self.reader, self.writer = await asyncio.open_connection(
                 self.settings.routeros_host,
                 self.settings.routeros_port,
@@ -106,6 +178,7 @@ class RouterOSAPI:
                 server_hostname=self.settings.routeros_host if context else None,
                 limit=MAX_WORD + 1,
             )
+            self.stage = "credentials"
             password = read_password(self.settings.routeros_password_file)
             await self._execute(
                 "/login", ("=name=" + self.settings.routeros_user, "=password=" + password)
@@ -145,6 +218,7 @@ class RouterOSAPI:
         # Defense in depth: even internal callers cannot send writes, scripts or arbitrary paths.
         if command not in {"/login", MONITOR, *(t.value for t in Table)}:
             raise RouterOSError("command-not-allowed")
+        self.stage = command  # Allowlisted path only; never retain argument words or passwords.
         if self.writer is None or self.reader is None:
             raise RouterOSError("not-connected")
         encoded = [word.encode("utf-8") for word in (command, *words)]

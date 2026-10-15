@@ -2,7 +2,6 @@
 
 import asyncio
 import re
-import ssl
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -11,7 +10,7 @@ from typing import Literal
 from pydantic import Field, ValidationError, field_validator, model_validator
 
 from mtunifi.config import Settings
-from mtunifi.routeros_api import RouterOSAPI, RouterOSError, Table
+from mtunifi.routeros_api import RouterOSAPI, RouterOSError, Table, api_error, api_target
 from mtunifi.scenario import LabModel
 from mtunifi.snapshot import (
     BridgeMember,
@@ -283,11 +282,12 @@ class RouterOSSource:
 
     async def collect(self, now: float, device_mac: str) -> dict:
         if now >= self._next_poll:
+            api = RouterOSAPI(self.settings)
             try:
                 async with asyncio.timeout(self.settings.routeros_timeout):
                     # One bounded session per poll: failures reconnect without sharing credentials
                     # or a socket with another device. Secret rotations apply on the next poll.
-                    async with RouterOSAPI(self.settings) as api:
+                    async with api:
                         snapshot = await collect_device(api, self.mapping)
                 previous = self._snapshot
                 reset = previous is not None and (
@@ -305,16 +305,7 @@ class RouterOSSource:
                 self._error, self._failures = None, 0
                 self._next_poll = now + self.settings.routeros_poll_interval
             except (RouterOSError, OSError, TimeoutError, asyncio.IncompleteReadError) as exc:
-                code = (
-                    exc.code
-                    if isinstance(exc, RouterOSError)
-                    else "tls-verification-failed"
-                    if isinstance(exc, ssl.SSLCertVerificationError)
-                    else "timeout"
-                    if isinstance(exc, TimeoutError)
-                    else "connection-failed"
-                )
-                self._error = RouterOSError(code)
+                self._error = api_error(exc, api.stage)
                 self._failures = min(5, self._failures + 1)
                 self._next_poll = now + min(
                     60, self.settings.routeros_poll_interval * 2 ** (self._failures - 1)
@@ -323,6 +314,7 @@ class RouterOSSource:
         snapshot = self._snapshot
         self.last_summary = {
             "source": "routeros",
+            "target": api_target(self.settings),
             "status": self.status,
             "observed_at": self._observed_at,
             "age_seconds": max(0, time.time() - self._observed_at)
@@ -332,6 +324,7 @@ class RouterOSSource:
             "neighbors": None,
             "mapped_physical_ports": len(self.mapping.ports),
             "source_error": self._error.code if self._error else None,
+            "source_error_details": self._error.public() if self._error else None,
             "observations": snapshot.public() if snapshot else None,
         }
         if self._error is not None:
