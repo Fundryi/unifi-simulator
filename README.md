@@ -1,0 +1,103 @@
+# MikroTik UniFi Switch Emulator — experimental M0
+
+The goal is a Docker service that makes RouterOS 7 switches visible in UniFi Network
+through the **device-side inform protocol**, eventually with real ports and wired
+clients. This revision is the initial synthetic protocol probe. It does not connect to
+MikroTik, and successful real-controller adoption has not yet been demonstrated.
+
+| Capability | Status |
+| --- | --- |
+| TNBU framing, AES-CBC/GCM, zlib; independent crypto tests | Confirmed working locally |
+| Persisted synthetic identity/key, safe diagnostic CLI, reconnect | Confirmed working with synthetic HTTP peer |
+| Eight-port US8 candidate profile | Experimental; UI acceptance not yet tested |
+| Outbound adoption metadata exchange | Partially working with synthetic peer; actual adoption unverified |
+| UniFi Network 8.0.24 / newer releases | Not yet tested for adoption; see [validation](docs/validation.md) |
+| RouterOS read-only collection, clients, VLANs, LLDP, multi-device CLI | Unsupported in M0; later milestones |
+| Applying controller configuration to MikroTik | Unsupported by design |
+
+## Development quick start
+
+Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. Run from the repository root:
+
+```sh
+UV_CACHE_DIR=/workspace/.cache/uv uv sync --frozen --extra dev
+.venv/bin/pytest -q
+.venv/bin/ruff check .
+.venv/bin/mtunifi sample
+.venv/bin/mtunifi diagnose
+```
+
+The cache override is useful in the cloud environment where the home directory is
+read-only; use a normal writable cache on your own machine. `sample` creates a private
+local identity in ignored `.state/` and prints the synthetic payload without network
+traffic. `diagnose` never prints adoption keys. `health` exits successfully only after
+a recent valid inform response, with no subsequent error; it cannot prove adoption.
+
+## Docker and adoption
+
+```sh
+cp .env.example .env  # preserve an existing .env
+# Edit .env for your authorized isolated controller and emulator IP.
+docker compose up -d --build
+docker compose logs -f emulator
+docker compose exec emulator mtunifi diagnose
+```
+
+The container runs as UID 10001, uses a persistent state volume, drops capabilities,
+has a read-only root filesystem, bounded logs, a restart policy and health check.
+It publishes no ports. Docker/Compose use the `.env` file; the Python CLI reads exported
+environment variables, not dotenv files. Never put credentials in the inform URL.
+
+In this cloud, build through the provided host trust bundle and a writable build cache:
+
+```sh
+export BUILDX_CONFIG=/workspace/.cache/buildx
+docker compose -f docker-compose.yml -f compose.cloud.yml build
+```
+
+The optional override passes the host CA bundle as a build secret; TLS verification
+stays enabled. Ordinary hosts with public trusted TLS do not need this override.
+The [validation report](docs/validation.md) also documents the standalone build and
+`scripts/docker-smoke.py`, which verifies the image against a synthetic HTTP peer.
+
+Follow [the local adoption experiment](docs/adoption.md) for a disposable 8.0.24 controller,
+wizard setup, UI verification, port/firewall rules and troubleshooting. Real-controller
+tests are opt-in; the ordinary test suite never contacts UniFi or MikroTik equipment.
+
+## Architecture and research
+
+Configuration -> synthetic profile -> inform state machine -> TNBU codec -> controller.
+Atomic per-device state stores identity and the controller-issued private key. The only
+accepted provisioning effects are emulator metadata (key, encryption, cfgversion).
+Raw configuration and controller commands are safely ignored. No shell execution,
+firmware download, RouterOS writes, external database or management web endpoint exists.
+
+- [Protocol research and unresolved questions](docs/protocol-research.md)
+- [Architecture and future integration boundaries](docs/architecture.md)
+- [RouterOS mapping and permissions plan](docs/routeros-mapping.md)
+- [Limitations and security](docs/limitations.md)
+- [Executed validation and compatibility evidence](docs/validation.md)
+
+RouterOS setup is intentionally deferred: no credentials or device configuration are
+needed for M0. Future collection must use TLS-verified API/REST and a dedicated account
+with read-only permissions; it must not require MikroTik to provide DHCP or routing.
+
+## Security and compatibility
+
+Use a lab you control. Bootstrap encryption uses a public protocol constant and CBC
+is unauthenticated. The state volume contains a private key in a mode-0600 file; protect
+backups. Optional protocol tracing logs metadata only. Never reuse real device identities
+or keys, modify production controller databases, or capture traffic without authorization.
+No compatibility or working MikroTik integration is claimed by this initial release.
+
+## Milestones
+
+0. Demonstrate synthetic switch adoption and sustained Connected status, or document the blocker.
+1. Determine accepted switch telemetry, configurable synthetic ports/clients/LLDP.
+2. Implement read-only RouterOS collection and normalization with mocked API tests.
+3. Add accurate FDB/ARP/DHCP/VLAN client correlation and aging.
+4. Establish topology with explicit observation/inference provenance.
+5. Add independent multi-device orchestration.
+
+Only milestone 0 is implemented here, and its live-adoption success gate remains open.
+License: MIT. Upstream protocol research and licensing notes are recorded in the research document.

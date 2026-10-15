@@ -1,0 +1,9 @@
+# Optional build-time trust for this cloud's HTTPS proxy. Never disables TLS verification.
+services:
+  emulator:
+    build:
+      secrets:
+        - build_ca
+secrets:
+  build_ca:
+    file: /etc/ssl/certs/ca-certificates.crt

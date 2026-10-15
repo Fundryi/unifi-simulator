@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mtunifi"
+version = "0.1.0"
+description = "Experimental device-side UniFi switch protocol emulator"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = ["cryptography>=44,<47", "httpx>=0.28,<0.29", "pydantic>=2.10,<3"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<10", "pytest-asyncio>=0.25,<2", "ruff>=0.11,<1", "pycryptodome>=3.21,<4"]
+
+[project.scripts]
+mtunifi = "mtunifi.main:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["controller: opt-in test against an explicitly authorized real controller"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]

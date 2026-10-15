@@ -1,0 +1,96 @@
+import fcntl
+import json
+import os
+import secrets
+import tempfile
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+
+
+class State(BaseModel):
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    schema_version: Literal[1] = 1
+    mac: str
+    authkey: SecretStr | None = None
+    phase: Literal["factory", "key-received", "exchanging"] = "factory"
+    cfgversion: str = Field(default="", max_length=256)
+    encryption: Literal["cbc", "gcm"] = "cbc"
+    controller_url: str | None = None
+    last_inform: float | None = None
+    last_attempt: float | None = None
+    last_telemetry: float | None = None
+    last_error: str | None = None
+
+    @field_validator("mac")
+    @classmethod
+    def valid_mac(cls, value: str) -> str:
+        raw = bytes.fromhex(value.replace(":", ""))
+        if len(raw) != 6 or raw[0] & 3 != 2:
+            raise ValueError("Identity must be a locally administered unicast MAC")
+        return ":".join(f"{b:02x}" for b in raw)
+
+    @field_validator("authkey")
+    @classmethod
+    def valid_key(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and len(bytes.fromhex(value.get_secret_value())) != 16:
+            raise ValueError("Invalid adoption key")
+        return value
+
+    def public(self) -> dict:
+        return self.model_dump(mode="json", exclude={"authkey"}) | {
+            "has_private_key": self.authkey is not None,
+            "controller_adoption_verified": False,
+        }
+
+
+class Store:
+    def __init__(self, directory: Path):
+        self.directory = directory
+        self.path = directory / "identity.json"
+
+    @contextmanager
+    def lock(self):
+        self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        with (self.directory / ".lock").open("a") as handle:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise RuntimeError("Another emulator owns this state directory") from None
+            try:
+                yield
+            finally:
+                fcntl.flock(handle, fcntl.LOCK_UN)
+
+    def load(self) -> State:
+        return State.model_validate_json(self.path.read_bytes())
+
+    def load_or_create(self) -> State:
+        if self.path.exists():
+            return self.load()  # Corrupt state must never silently create a new identity.
+        mac = bytearray(secrets.token_bytes(6))
+        mac[0] = (mac[0] | 2) & 254
+        state = State(mac=":".join(f"{b:02x}" for b in mac))
+        self.save(state)
+        return state
+
+    def save(self, state: State):
+        data = state.model_dump(mode="json", exclude={"authkey"})
+        data["authkey"] = state.authkey.get_secret_value() if state.authkey else None
+        fd, name = tempfile.mkstemp(prefix=".identity-", dir=self.directory)
+        try:
+            with os.fdopen(fd, "w") as handle:
+                json.dump(data, handle)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(name, self.path)  # mkstemp creates mode 0600; replacement is atomic.
+            directory_fd = os.open(self.directory, os.O_DIRECTORY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        finally:
+            if os.path.exists(name):
+                os.unlink(name)

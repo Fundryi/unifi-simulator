@@ -1,0 +1,22 @@
+# Isolated, disposable controller. No production volumes; UI binds to host loopback only.
+# Merge with docker-compose.yml; set MTUNIFI_INFORM_URL=http://controller:8080/inform in .env.
+services:
+  controller:
+    image: jacobalberty/unifi:v8.0.24
+    environment:
+      TZ: Etc/UTC
+    ports:
+      - "127.0.0.1:18443:8443"
+    volumes:
+      - controller-lab:/unifi
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+  emulator:
+    depends_on:
+      - controller
+volumes:
+  controller-lab:

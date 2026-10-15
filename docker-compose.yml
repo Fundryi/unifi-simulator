@@ -1,0 +1,23 @@
+services:
+  emulator:
+    build: .
+    environment:
+      MTUNIFI_INFORM_URL: ${MTUNIFI_INFORM_URL:?Set an authorized lab controller /inform URL}
+      MTUNIFI_DEVICE_IP: ${MTUNIFI_DEVICE_IP:-192.0.2.10}
+      MTUNIFI_HOSTNAME: ${MTUNIFI_HOSTNAME:-mtunifi-lab}
+      MTUNIFI_ENCRYPTION: ${MTUNIFI_ENCRYPTION:-cbc}
+      MTUNIFI_PACKET_VERSION: ${MTUNIFI_PACKET_VERSION:-1}
+      MTUNIFI_TRACE: ${MTUNIFI_TRACE:-false}
+    volumes:
+      - state:/state
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  state:
