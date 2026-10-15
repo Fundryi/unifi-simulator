@@ -12,11 +12,14 @@ services:
       MTUNIFI_ENCRYPTION: ${MTUNIFI_ENCRYPTION:-cbc}
       MTUNIFI_PACKET_VERSION: ${MTUNIFI_PACKET_VERSION:-1}
       MTUNIFI_TRACE: ${MTUNIFI_TRACE:-false}
+      MTUNIFI_SYNTHETIC_FILE: /scenarios/${MTUNIFI_SCENARIO:-synthetic-switch.json}
     networks:
       lab:
         ipv4_address: ${UNIFI_SIMULATOR_IP:-172.30.88.10}
     volumes:
       - simulator-state:/state
+      # A directory mount also picks up atomic file replacements during hot reload.
+      - ../../examples:/scenarios:ro
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]

@@ -9,6 +9,7 @@ import subprocess
 import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 from mtunifi.protocol import BOOTSTRAP_KEY, decode, encode
 
@@ -57,6 +58,10 @@ def main():
             "--security-opt=no-new-privileges",
             "-v",
             f"{volume}:/state",
+            "-v",
+            f"{Path('examples').resolve()}:/scenarios:ro",
+            "-e",
+            "MTUNIFI_SYNTHETIC_FILE=/scenarios/synthetic-switch.json",
             "-e",
             f"MTUNIFI_INFORM_URL=http://127.0.0.1:{server.server_port}/inform",
             "mtunifi:dev",
@@ -66,14 +71,21 @@ def main():
         public = json.loads(docker(*arguments, "diagnose"))
         assert public["phase"] == "exchanging"
         assert public["has_private_key"] is True
+        assert public["wired_clients"] == 3
+        assert public["synthetic_telemetry"]["status"] == "active"
         assert "authkey" not in public
         docker(*arguments, "health")
         assert len(seen) == 2 and seen[1].mode == "gcm"
         assert seen[0].mac == seen[1].mac
         assert len(seen[1].body["port_table"]) == 8
+        assert len(seen[1].body["port_table"][2]["mac_table"]) == 2
+        assert "ip" not in seen[1].body["port_table"][2]["mac_table"][1]
+        assert len(seen[1].body["lldp_table"]) == 2
         uid = docker("run", "--rm", "--entrypoint", "id", "mtunifi:dev", "-u").strip()
         assert uid == "10001"
-        print("PASS: container HTTP exchange, key/identity persistence, GCM, health, UID 10001")
+        print(
+            "PASS: container GCM, persisted identity, read-only scenario, clients/LLDP, health, UID"
+        )
     finally:
         server.shutdown()
         server.server_close()

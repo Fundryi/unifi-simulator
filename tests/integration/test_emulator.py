@@ -15,6 +15,7 @@ from mtunifi.protocol import BOOTSTRAP_KEY, decode, encode
 from mtunifi.storage import Store
 
 KEY = bytes.fromhex("1234567890abcdef1234567890abcdef")
+DEMO = Path(__file__).resolve().parents[2] / "examples/synthetic-switch.json"
 
 
 def emulator(tmp_path):
@@ -168,6 +169,46 @@ async def test_dns_lookup_is_bounded_by_timeout(tmp_path, monkeypatch):
     async with httpx.AsyncClient() as client:
         assert not await app.exchange(client)
     assert app.store.load().last_error == "Controller IPv4 DNS resolution failed"
+
+
+async def test_scenario_reload_over_encrypted_inform_retains_adoption(tmp_path):
+    scenario = json.loads(DEMO.read_text())
+    config = tmp_path / "scene.json"
+    config.write_text(json.dumps(scenario))
+    store = Store(tmp_path)
+    app = Emulator(Settings(synthetic_file=config), store, store.load_or_create())
+    packets = []
+
+    def controller(request):
+        key = BOOTSTRAP_KEY if not packets else KEY
+        packet = decode(request.content, key)
+        packets.append(packet)
+        response = (
+            {"_type": "setparam", "mgmt_cfg": f"authkey={KEY.hex()}\nuse_aes_gcm=1"}
+            if len(packets) == 1
+            else {"_type": "noop"}
+        )
+        raw = encode(response, packet.mac, key, mode=packet.mode)
+        return httpx.Response(200, stream=httpx.ByteStream(raw))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(controller)) as client:
+        assert await app.exchange(client)
+        scenario["ports"][1]["up"] = False
+        config.write_text(json.dumps(scenario))
+        assert await app.exchange(client)
+        config.write_text('{"private":"never-log-this"}')
+        assert await app.exchange(client)
+    assert packets[0].body["port_table"][1]["mac_table"]
+    assert packets[1].mode == "gcm"
+    assert not packets[1].body["port_table"][1]["up"]
+    assert packets[1].body["port_table"][1]["mac_table"] == []
+    assert len(packets[1].body["lldp_table"]) == 1
+    assert packets[2].body["port_table"][1]["mac_table"] == []
+    assert store.load().phase == "exchanging"
+    report = store.load_telemetry()
+    assert report["status"] == "using-last-good" and report["active_clients"] == 2
+    assert "authkey" not in json.dumps(report)
+    assert len({packet.mac for packet in packets}) == 1
 
 
 @pytest.mark.controller

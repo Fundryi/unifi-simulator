@@ -18,6 +18,12 @@ class Settings(BaseModel):
     interval: float = Field(default=10, ge=1, le=300)
     timeout: float = Field(default=10, ge=1, le=120)
     trace: bool = False
+    synthetic_file: Path | None = None
+
+    @field_validator("synthetic_file", mode="before")
+    @classmethod
+    def optional_scenario(cls, value):
+        return None if value == "" else value
 
     @field_validator("inform_url")
     @classmethod

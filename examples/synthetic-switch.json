@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "ports": [
+    {"port_idx": 1, "up": true, "speed_mbps": 1000, "is_uplink": true,
+     "rx_bytes": 10000000, "tx_bytes": 20000000,
+     "rx_bytes_per_second": 125000, "tx_bytes_per_second": 64000},
+    {"port_idx": 2, "up": true, "speed_mbps": 1000,
+     "rx_bytes_per_second": 62500, "tx_bytes_per_second": 125000},
+    {"port_idx": 3, "up": true, "speed_mbps": 100,
+     "rx_bytes_per_second": 20000, "tx_bytes_per_second": 40000},
+    {"port_idx": 4},
+    {"port_idx": 5},
+    {"port_idx": 6},
+    {"port_idx": 7},
+    {"port_idx": 8}
+  ],
+  "clients": [
+    {"mac": "02:00:00:01:00:01", "port_idx": 2, "vlan": 1,
+     "ip": "192.0.2.101", "hostname": "synthetic-workstation"},
+    {"mac": "02:00:00:01:00:02", "port_idx": 3, "vlan": 1,
+     "ip": "192.0.2.102", "hostname": "synthetic-client-behind-switch"},
+    {"mac": "02:00:00:01:00:03", "port_idx": 3, "vlan": 20,
+     "hostname": "synthetic-client-unknown-ip"}
+  ],
+  "neighbors": [
+    {"local_port_idx": 1, "chassis_id": "02:00:00:02:00:01",
+     "chassis_descr": "Synthetic upstream switch", "local_port_name": "eth0",
+     "port_id": "eth7", "port_descr": "Synthetic downstream link"},
+    {"local_port_idx": 2, "chassis_id": "02:00:00:01:00:01",
+     "chassis_descr": "Synthetic LLDP workstation", "local_port_name": "eth1",
+     "port_id": "eth0"}
+  ]
+}

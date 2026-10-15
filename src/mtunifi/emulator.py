@@ -8,6 +8,7 @@ from pydantic import SecretStr
 
 from mtunifi.config import Settings
 from mtunifi.protocol import BOOTSTRAP_KEY, MAX_PAYLOAD, ProtocolError, decode, encode
+from mtunifi.scenario import ScenarioError, SyntheticSource
 from mtunifi.storage import State, Store
 from mtunifi.telemetry import inform
 from mtunifi.transport import advertised_inform_url
@@ -77,10 +78,13 @@ def apply_response(state: State, response: dict) -> float | None:
 
 
 class Emulator:
-    def __init__(self, settings: Settings, store: Store, state: State):
+    def __init__(
+        self, settings: Settings, store: Store, state: State, source: SyntheticSource | None = None
+    ):
         self.settings, self.store, self.state = settings, store, state
         self.started = time.monotonic()
         self.delay = settings.interval
+        self.source = source if source is not None else SyntheticSource(settings.synthetic_file)
 
     async def exchange(self, client: httpx.AsyncClient) -> bool:
         state = self.state
@@ -104,9 +108,20 @@ class Emulator:
                 state,
                 int(time.monotonic() - self.started),
                 inform_url=report_url,
+                snapshot=self.source.snapshot(time.monotonic(), state.mac),
             )
             state.last_telemetry = time.time()
-            event("telemetry_generated", ports=len(body["port_table"]), source="synthetic")
+            self.store.save_telemetry(
+                self.source.last_summary | {"updated_at": state.last_telemetry}
+            )
+            event(
+                "telemetry_generated",
+                ports=len(body["port_table"]),
+                source="synthetic",
+                clients=self.source.last_summary["active_clients"],
+                neighbors=len(body["lldp_table"]),
+                scenario_status=self.source.status,
+            )
             packet = encode(body, state.mac, key, mode=mode, version=self.settings.packet_version)
             event("inform_request", bytes=len(packet), phase=state.phase, encryption=mode)
             async with client.stream(
@@ -147,9 +162,11 @@ class Emulator:
             state.last_inform = time.time()
             state.last_error = None
             event("inform_success", phase=state.phase)
-        except (httpx.HTTPError, ProtocolError) as exc:
+        except (httpx.HTTPError, ProtocolError, ScenarioError) as exc:
             # Exception strings from HTTP libraries can include URLs or credentials: never log them.
-            state.last_error = str(exc) if isinstance(exc, ProtocolError) else type(exc).__name__
+            state.last_error = (
+                str(exc) if isinstance(exc, (ProtocolError, ScenarioError)) else type(exc).__name__
+            )
             self.delay = min(60, max(self.settings.interval, self.delay * 2))
             event("inform_failure", reason=state.last_error, retry_seconds=self.delay)
             self.store.save(state)

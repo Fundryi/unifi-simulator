@@ -8,8 +8,10 @@ services:
       MTUNIFI_ENCRYPTION: ${MTUNIFI_ENCRYPTION:-cbc}
       MTUNIFI_PACKET_VERSION: ${MTUNIFI_PACKET_VERSION:-1}
       MTUNIFI_TRACE: ${MTUNIFI_TRACE:-false}
+      MTUNIFI_SYNTHETIC_FILE: ${MTUNIFI_SYNTHETIC_FILE:-}
     volumes:
       - state:/state
+      - ./examples:/scenarios:ro
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]

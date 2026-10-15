@@ -149,7 +149,23 @@ was used. DNS failures are bounded, redacted and retried; this profile requires 
 This confirms the outbound key-delivery path for this release, not all controller
 versions or UI features. See `validation.md` for sustained/restart observations.
 
-## 9. Compatibility and next experiment
+## 9. M1 switch telemetry experiment on 10.6.106
+
+The TNBU Port_Table/Mac_Table/Lldp_Table names and types above were emitted by an
+independent configurable synthetic source. The real controller accepted port states,
+speeds and byte counters and computed nonzero byte-rate fields. Nested mac_table
+entries created separate wired client records with switch MAC/port associations;
+one without IP was accepted, including VLAN 20 metadata. Both LLDP records survived
+into the device API. Missing mac_table in that API is a consumed-field transformation,
+not a rejection: clients are exposed separately in stat/sta.
+
+Live link/speed and LLDP changes were accepted without new adoption. A forward client
+move updated its port, while a rapid reverse move and removal retained cached
+controller associations. Exact aging remains unresolved. This implementation does not
+invent purge messages or create clients through controller APIs. Topology graph and
+traffic-chart UI effects are still unverified. Detailed results: `validation.md`.
+
+## 10. Compatibility and next experiment
 
 The original sources do not establish this emulator's compatibility with 8.0.24 or newer releases.
 The specific 10.6.106 observation above supplies independent experimental evidence.

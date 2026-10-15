@@ -1,7 +1,7 @@
 # Architecture and milestone boundary
 
-M0 is a single synthetic device, using outbound UniFi device protocol. It provides
-no dashboard, controller API facade, RouterOS integration or automatic network discovery.
+M0/M1 implement a single synthetic device using outbound UniFi device protocol. There
+is no dashboard, controller API facade, RouterOS integration or automatic network discovery.
 
 ```mermaid
 flowchart LR
@@ -14,8 +14,9 @@ flowchart LR
 ```
 
 `config.py`: validated settings, no credential-bearing URLs. `protocol.py`: bounded
-binary codec, independent of networking. `telemetry.py`: small normalized PhysicalPort
-dataclass and source-supported switch mapping. `emulator.py`: serialized state transitions,
+binary codec, independent of networking. `scenario.py`: strict Pydantic lab models,
+file hot reload, monotonic counters, active clients and neighbors. `telemetry.py` maps
+the synthetic snapshot to source-supported fields. `emulator.py`: serialized state transitions,
 bounded HTTP transport, retry loop and allowlisted management metadata. `storage.py`:
 exclusive Linux file lock, atomic mode-0600 state replacement and fsync. `main.py`:
 CLI, safe diagnostics and health command. A state volume survives process/container restarts.
@@ -36,7 +37,14 @@ Future RouterOS collector -> vendor-neutral snapshot -> switch mapper will repla
 the synthetic source. Separate logical/physical interfaces and confidence/provenance
 are required; see `routeros-mapping.md`. One Emulator/Store per device isolates keys,
 controller state, collectors and reconnect handling. Only one process/device is exposed
-by the M0 CLI; multi-device orchestration is deliberately deferred.
+by the CLI; multi-device orchestration is deliberately deferred.
+
+The scenario file is mounted as part of a read-only directory. Invalid runtime edits
+retain the last valid in-memory scenario; invalid initial configuration fails startup.
+Counter state is per-process and resets with device uptime on restart; it never changes
+the persistent adoption identity. A separate atomic `telemetry.json` stores the latest
+generated diagnostic snapshot without copying adoption keys into it. Real collection
+and vendor-neutral normalization remain later milestones.
 
 State does not persist raw controller configuration. CLI health checks recent valid
 protocol exchange and last-error status, not controller UI state. Health does not probe

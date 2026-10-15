@@ -35,3 +35,36 @@ def test_diagnostics_and_read_only_health(tmp_path, monkeypatch, capsys):
     assert public["synthetic_ports"] == 8
     assert not public["controller_adoption_verified"]
     assert "authkey" not in public
+
+
+def test_validate_scenario_is_offline_and_does_not_create_identity(tmp_path, monkeypatch, capsys):
+    from pathlib import Path
+
+    scenario = Path(__file__).resolve().parents[2] / "examples/synthetic-switch.json"
+    monkeypatch.setenv("MTUNIFI_STATE_DIR", str(tmp_path / "unused"))
+    monkeypatch.setenv("MTUNIFI_SYNTHETIC_FILE", str(scenario))
+    monkeypatch.setattr("sys.argv", ["mtunifi", "validate-scenario"])
+    assert main() == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "valid": True,
+        "ports": 8,
+        "clients": 3,
+        "neighbors": 2,
+    }
+    assert not (tmp_path / "unused").exists()
+
+
+def test_invalid_initial_scenario_does_not_create_identity_or_echo_values(
+    tmp_path, monkeypatch, capsys
+):
+    scenario = tmp_path / "bad.json"
+    scenario.write_text('{"DO-NOT-ECHO-AS-KEY":"DO-NOT-ECHO"}')
+    monkeypatch.setenv("MTUNIFI_STATE_DIR", str(tmp_path / "unused"))
+    monkeypatch.setenv("MTUNIFI_SYNTHETIC_FILE", str(scenario))
+    monkeypatch.setattr("sys.argv", ["mtunifi", "run"])
+    assert main() == 2
+    output = capsys.readouterr().err
+    assert "DO-NOT-ECHO" not in output
+    assert json.loads(output)["reason"] == "Invalid synthetic scenario"
+    assert {"path": "<unknown>", "error": "extra_forbidden"} in json.loads(output)["issues"]
+    assert not (tmp_path / "unused").exists()

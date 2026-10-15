@@ -2,7 +2,7 @@
 
 The goal is a Docker service that makes RouterOS 7 switches visible in UniFi Network
 through the **device-side inform protocol**, eventually with real ports and wired
-clients. This revision is a synthetic milestone-0 emulator. Adoption and Connected
+clients. This revision implements synthetic milestones 0 and 1. Adoption and Connected
 state have been observed through an isolated UniFi Network 10.6.106 controller API.
 It does not yet connect to MikroTik; UI rendering and other versions remain unverified.
 
@@ -11,10 +11,12 @@ It does not yet connect to MikroTik; UI rendering and other versions remain unve
 | TNBU framing, AES-CBC/GCM, zlib; independent crypto tests | Confirmed working locally |
 | Persisted synthetic identity/key, safe diagnostic CLI, reconnect | Confirmed working with synthetic HTTP peer |
 | Eight-port US8 candidate profile | Eight ports accepted by 10.6.106 controller API; UI rendering unverified |
+| Configurable links, elapsed-time counters, hot reload | Confirmed locally and through 10.6.106 controller API |
+| Synthetic wired clients and LLDP | Three wired clients and two LLDP records accepted by 10.6.106; topology UI unverified |
 | Outbound adoption metadata exchange | Confirmed with 10.6.106: private key, GCM, provisioning and noop |
 | UniFi Network 10.6.106 | Adoption/Connected observed through controller API; see [validation](docs/validation.md) |
 | UniFi Network 8.0.24 / other releases | Adoption not yet tested |
-| RouterOS read-only collection, clients, VLANs, LLDP, multi-device CLI | Unsupported in M0; later milestones |
+| RouterOS collection, real FDB/topology, VLAN configuration, multi-device CLI | Not implemented; later milestones |
 | Applying controller configuration to MikroTik | Unsupported by design |
 
 ## Development quick start
@@ -36,6 +38,10 @@ traffic. `diagnose` never prints adoption keys. `health` exits successfully only
 a recent valid inform response, with no subsequent error; it cannot prove adoption.
 
 ## Docker and adoption
+
+For synthetic ports/traffic/client/LLDP scenarios, hot reload and upgrading an existing
+adopted device, see [Milestone 1 telemetry](docs/synthetic-telemetry.md).
+The lab Compose now selects the demo scenario by default and preserves adoption state.
 
 For a **complete local test environment using LinuxServer UniFi Network + authenticated
 MongoDB**, use [deploy/lab](deploy/lab/README.md). It provides two separate Compose projects
@@ -108,6 +114,6 @@ or compatibility with other releases is claimed.
 4. Establish topology with explicit observation/inference provenance.
 5. Add independent multi-device orchestration.
 
-Only milestone 0 is implemented here. Controller API observations are documented;
-manual UI inspection and later telemetry milestones remain separate checks.
+Milestones 0 and 1 are implemented with real controller API observations. Manual UI
+inspection, RouterOS integration and subsequent milestones remain separate work.
 License: MIT. Upstream protocol research and licensing notes are recorded in the research document.

@@ -1,5 +1,46 @@
 # Executed validation — 2026-10-15
 
+## Milestone 1: synthetic telemetry on 10.6.106
+
+The user confirmed the M0 adoption fix in their controller. M1 was then tested against
+the same isolated LinuxServer 10.6.106 image used below, with a fresh synthetic identity.
+An administrator lab session was established through the existing controller setup API.
+All client/LLDP data below entered through device-side encrypted informs, not controller
+client creation or database edits. Browser UI rendering was not inspected.
+
+| Experiment | Observed outcome |
+| --- | --- |
+| Fresh M1 device adoption | Adopted, Connected (`state=1`), GCM setparam/noop |
+| Demo port table | Eight ports, 1/2 at 1000 Mb/s, 3 at 100 Mb/s, others down |
+| Traffic counters | Increasing RX/TX; controller rate fields about 125008 RX / 64004 TX bytes/s vs configured 125000 / 64000 (sampling/rounding) |
+| Wired clients | All three MACs appeared in stat/sta with correct initial switch and ports 2/3/3 |
+| Unknown IP / VLAN | Unknown-IP client had no fabricated IP; VLAN 20 retained |
+| LLDP | Both source-supported neighbor records retained in device API |
+| Live port edits | Port 2 down, port 3 changed to 10 Mb/s, port 5 up; state stayed Connected |
+| LLDP removal | Port 2 down removed that neighbor from device LLDP table |
+| Down-link counters | Port 2 bytes stayed fixed while active port 1 increased |
+| Client move 3 -> 5 | Correct association appeared through stat/sta without new adoption |
+| Malformed runtime JSON | Last good scenario retained, same key/identity exchanging, no input content logged |
+| Valid file recovery | Source returned to active with three clients; controller restored port states and two LLDP records |
+| Fast reverse client move 5 -> 3 | **Partial:** source emitted port 3 but controller kept cached sw_port=5; exact aging unresolved |
+| Client removed by link down | **Partial:** controller retained cached record with old last_seen for at least 132 seconds |
+
+The device API removes nested mac_table after processing it; separate wired client
+records demonstrate it was consumed, not rejected. No fake station fields, fabricated
+unknown IP, forced controller client purge, RouterOS connection or management writes
+were used. The validation scenario was a Git-ignored local copy, preserving the shipped demo.
+
+Automated coverage includes configuration validation, bounds, MAC/VLAN uniqueness,
+large/fractional/reset/paused counters, live moves, hot reload/failure recovery,
+diagnostics redaction, identity isolation and actual encrypted fixture exchanges.
+Final results: **89 passed, 1 skipped** (explicit real-controller pytest opt-in),
+Ruff lint/format passed, Compose configuration validated, final Docker image built
+with TLS verification retained. The M1 container smoke check passed as UID 10001
+with a read-only scenario mount, GCM key/identity persistence, three clients, two
+LLDP records, diagnostic snapshot and protocol health.
+See `synthetic-telemetry.md` for usage and the distinction between controller API
+acceptance, cache behavior and unverified topology/chart rendering.
+
 ## Subsequent fix: real UniFi Network 10.6.106 adoption
 
 A user reported Ready to Adopt -> Adopting and HTTP 404 -> 400 on 10.6.106.

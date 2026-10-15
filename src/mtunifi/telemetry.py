@@ -1,26 +1,22 @@
 """Minimal synthetic profile. No field is a claim about MikroTik observations."""
 
 import time
-from dataclasses import dataclass
 
 from mtunifi.config import Settings
+from mtunifi.scenario import SyntheticSource
 from mtunifi.storage import State
 
 
-@dataclass(frozen=True)
-class PhysicalPort:
-    index: int
-    up: bool = False
-    speed_mbps: int = 0
-    rx_bytes: int = 0
-    tx_bytes: int = 0
-
-
-def inform(settings: Settings, state: State, uptime: int, *, inform_url: str | None = None) -> dict:
-    # Names and types are supported by TNBU BaseInformBody/Port_Table; US8 acceptance untested.
-    ports = [
-        PhysicalPort(index=i, up=i == 1, speed_mbps=1000 if i == 1 else 0) for i in range(1, 9)
-    ]
+def inform(
+    settings: Settings,
+    state: State,
+    uptime: int,
+    *,
+    inform_url: str | None = None,
+    snapshot: dict | None = None,
+) -> dict:
+    if snapshot is None:
+        snapshot = SyntheticSource(settings.synthetic_file).snapshot(0, state.mac)
     return {
         "model": "US8",
         "model_display": "UniFi Switch 8",
@@ -39,17 +35,5 @@ def inform(settings: Settings, state: State, uptime: int, *, inform_url: str | N
         "discovery_response": False,
         "isolated": False,
         "locating": False,
-        "port_table": [
-            {
-                "port_idx": p.index,
-                "up": p.up,
-                "enable": True,
-                "speed": p.speed_mbps,
-                "full_duplex": p.up,
-                "autoneg": True,
-                "rx_bytes": p.rx_bytes,
-                "tx_bytes": p.tx_bytes,
-            }
-            for p in ports
-        ],
+        **snapshot,
     }

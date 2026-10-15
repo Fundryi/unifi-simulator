@@ -52,6 +52,13 @@ docker compose -f compose.simulator.yml logs -f emulator
 docker compose -f compose.simulator.yml exec emulator mtunifi diagnose
 ```
 
+The simulator now loads [the M1 demo](../../examples/synthetic-switch.json): eight
+configurable ports, growing counters, three wired clients and two LLDP neighbors.
+Edit a local JSON scenario for live changes without new adoption. For fields,
+read-only mounts, counter resets and controller caching limitations, see
+[synthetic telemetry](../../docs/synthetic-telemetry.md). Existing `.env` and adoption
+volumes are preserved; MTUNIFI_SCENARIO defaults to `synthetic-switch.json`.
+
 In the UniFi Devices view, look for the fresh synthetic switch and choose Adopt if it
 appears. The simulator talks directly to `http://unifi-network-application:8080/inform`.
 Its fixed IP is also the IP reported in telemetry. It needs no published ports.

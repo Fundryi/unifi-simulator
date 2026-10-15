@@ -79,13 +79,28 @@ class Store:
     def save(self, state: State):
         data = state.model_dump(mode="json", exclude={"authkey"})
         data["authkey"] = state.authkey.get_secret_value() if state.authkey else None
+        self._atomic_json(self.path, data)
+
+    def save_telemetry(self, summary: dict):
+        self._atomic_json(self.directory / "telemetry.json", summary)
+
+    def load_telemetry(self) -> dict | None:
+        try:
+            data = json.loads((self.directory / "telemetry.json").read_bytes())
+        except FileNotFoundError:
+            return None
+        if not isinstance(data, dict) or not isinstance(data.get("active_clients"), int):
+            raise ValueError("Invalid telemetry snapshot")
+        return data
+
+    def _atomic_json(self, path: Path, data: dict):
         fd, name = tempfile.mkstemp(prefix=".identity-", dir=self.directory)
         try:
             with os.fdopen(fd, "w") as handle:
                 json.dump(data, handle)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(name, self.path)  # mkstemp creates mode 0600; replacement is atomic.
+            os.replace(name, path)  # mkstemp creates mode 0600; replacement is atomic.
             directory_fd = os.open(self.directory, os.O_DIRECTORY)
             try:
                 os.fsync(directory_fd)

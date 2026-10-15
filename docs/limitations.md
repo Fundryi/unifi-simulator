@@ -1,15 +1,22 @@
 # Current limitations and milestone gate
 
-This revision is an experimental M0 synthetic emulator, not a working MikroTik integration.
+This revision is an experimental M0/M1 synthetic emulator, not a working MikroTik integration.
 The M0 success criterion is an actually adopted switch remaining Connected in a real
 test UniFi controller; codec tests and a synthetic HTTP peer cannot satisfy that criterion.
 See `validation.md` for the real 10.6.106 controller API result. Manual UI inspection
-and later telemetry/client milestones remain separate, unverified checks.
+remains separate from controller API validation. See `synthetic-telemetry.md` for M1 results.
 
 - US8 profile and candidate firmware were accepted by the 10.6.106 controller API;
   hardware fidelity, other releases and UI rendering still need validation.
-- Only one eight-port profile, fixed synthetic link states and zero counters.
-- No wired clients, LLDP, VLANs, FDB, health sensors or RouterOS collector.
+- Only one eight-port profile; configuration and counters describe synthetic lab data.
+- Three synthetic wired clients and LLDP were accepted by 10.6.106. Removed clients
+  and rapid reverse port moves can retain cached associations; immediate offline/
+  reassociation and exact aging time are not guaranteed. No controller-side purge is used.
+- No real FDB collection, VLAN configuration, health sensors or RouterOS collector.
+- Synthetic counters reset to configured baselines when the process restarts, with
+  uptime reset. The diagnostic snapshot does not restore a prior process's counters.
+- Last-good scenario retention is in memory. An invalid file still prevents restart.
+- Client/LLDP API presence does not prove topology graph or traffic-chart UI rendering.
 - No UDP 10001 discovery, inbound SSH adoption, STUN or remote shell.
 - Snappy and packet/data versions outside the documented subset are rejected.
 - Controller system configuration, upgrades, reset and commands are ignored.
