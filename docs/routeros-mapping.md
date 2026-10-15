@@ -2,7 +2,8 @@
 
 Synthetic adoption was demonstrated in M0/M1. M2 now implements read-only native
 RouterOS 7.24+ API collection and vendor-neutral normalization; see [deployment](routeros.md).
-No RouterOS writes exist. The real RB760iGS still needs local validation.
+No RouterOS writes exist. The user confirmed a successful RB760iGS 7.24.4 probe;
+detailed hardware field/UI validation remains separate.
 
 Use verified API-SSL or the user's explicitly requested LAN API on 8728 with a dedicated read-only account,
 restrict it to the collector source IP and grant only required read/API permissions.

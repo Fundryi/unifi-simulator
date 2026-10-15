@@ -5,8 +5,8 @@ through the **device-side inform protocol**, eventually with real ports and wire
 clients. This revision implements synthetic milestones 0/1 and a read-only RouterOS
 7.24+ API collector for milestone 2. Adoption and Connected
 state have been observed through an isolated UniFi Network 10.6.106 controller API.
-Actual RB760iGS collection still needs local verification; UI rendering and other
-controller versions remain unverified.
+The user confirmed a successful read-only probe on RB760iGS / RouterOS 7.24.4;
+actual-hardware UniFi UI rendering and other controller versions remain unverified.
 
 | Capability | Status |
 | --- | --- |
@@ -18,7 +18,7 @@ controller versions remain unverified.
 | Outbound adoption metadata exchange | Confirmed with 10.6.106: private key, GCM, provisioning and noop |
 | UniFi Network 10.6.106 | Adoption/Connected observed through controller API; see [validation](docs/validation.md) |
 | UniFi Network 8.0.24 / other releases | Adoption not yet tested |
-| Read-only RouterOS 7.24+ API/API-SSL, six-port RB760iGS mapping | Implemented; TCP/TLS fixtures tested, actual device validation pending |
+| Read-only RouterOS 7.24+ API/API-SSL, six-port RB760iGS mapping | TCP/TLS fixtures tested; user confirmed local 7.24.4 probe after API source-IP correction |
 | Real FDB/topology, VLAN configuration, multi-device CLI | Not implemented; later milestones |
 | Applying controller configuration to MikroTik | Unsupported by design |
 
@@ -112,8 +112,9 @@ Use a lab you control. Bootstrap encryption uses a public protocol constant and 
 is unauthenticated. The state volume contains a private key in a mode-0600 file; protect
 backups. Optional protocol tracing logs metadata only. Never reuse real device identities
 or keys, modify production controller databases, or capture traffic without authorization.
-The 10.6.106 result covers the synthetic UniFi profile. Actual MikroTik collection
-and compatibility with other controller releases are not yet established.
+The 10.6.106 result covers the synthetic UniFi profile. A successful actual MikroTik
+API probe is user-confirmed; detailed hardware telemetry/UI and other controller
+releases remain unverified.
 
 ## Milestones
 
@@ -125,5 +126,6 @@ and compatibility with other controller releases are not yet established.
 5. Add independent multi-device orchestration.
 
 Milestones 0 and 1 have real controller API observations. M2 collection is implemented
-and fixture-tested; actual RouterOS device validation and manual UI inspection remain.
+and fixture-tested, with a user-confirmed RouterOS 7.24.4 probe. Detailed hardware
+telemetry review and manual UI inspection remain.
 License: MIT. Upstream protocol research and licensing notes are recorded in the research document.

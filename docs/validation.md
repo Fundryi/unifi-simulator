@@ -16,15 +16,22 @@ authentication stage and sanitized OS error classification. Both production-imag
 TCP/TLS container checks also close the fixture listener and verify the resulting
 `startup_error` contains `connection-refused`, target port and connect stage.
 Result: **162 passed, 1 skipped** with Docker opt-in; regular suite **160 passed,
-3 skipped**. Docker build and Ruff lint/format passed. The user's actual failure
-still requires a new probe result; no specific root cause is claimed yet.
+3 skipped**. Docker build and Ruff lint/format passed.
+
+The updated user-side probe reported `connection-closed` at `/login`. The user then
+identified the API service's allowed source IP range as the cause and confirmed the
+probe succeeded after correcting that restriction. This is user-reported successful
+read-only collection on the RB760iGS / RouterOS 7.24.4, following both host/container
+TCP checks. The normalized result and actual-hardware UniFi display were not supplied,
+so exact field values, optional warnings and UI behavior remain unreviewed.
 
 ## Milestone 2: RouterOS API collector — 2026-10-16
 
 The user selected an RB760iGS at 192.168.0.249:8728 running RouterOS 7.24.4 and
 explicitly requested native API without TLS. The cloud TCP connection was refused;
-no RouterOS credentials were present. **Actual hardware collection/permissions and
-field compatibility are not validated.** The local probe procedure is in `routeros.md`.
+no RouterOS credentials were present. The initial checks below used fixtures; the
+subsequent successful user-side hardware probe is recorded above. Full field/UI
+validation remains separate. The local probe procedure is in `routeros.md`.
 
 The implementation was tested against independent loopback RouterOS sentence peers,
 both plaintext TCP and certificate-verified API-SSL. The fixtures represent six physical

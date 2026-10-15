@@ -194,6 +194,10 @@ and retain these details in `diagnose`.
 | `timeout` | Reachability or a stalled API command; inspect the stage |
 
 A successful TCP check from the Docker host does not establish container reachability.
+Even successful container TCP can be followed by `connection-closed` at `/login` if
+the API service restricts the source IP range. This was confirmed on the user's
+RB760iGS / 7.24.4: correcting the API allowed-address range made the probe succeed.
+Match the actual source address seen by RouterOS after Docker/host NAT.
 From `deploy/lab`, with the emulator stopped as for the normal probe, test the same
 Compose network and effective host/port without reading credentials:
 
@@ -239,5 +243,6 @@ MTUNIFI_ALLOW_DOCKER_TEST=yes MTUNIFI_DOCKER_IMAGE=unifi-simulator-lab-emulator 
 These use host networking only for loopback wire fixtures, temporary test state
 volumes, mounted fixture secrets, UID 10001 and a read-only root filesystem.
 The cloud connection to `192.168.0.249:8728` was refused and no RouterOS credentials
-were available there. Actual RB760iGS behavior, permissions and UniFi display of its
-observed telemetry still require the local probe and controller check above.
+were available there. The user subsequently confirmed a successful local probe on
+RB760iGS / 7.24.4 after correcting the API source-IP restriction. Detailed observation
+values, optional warnings and UniFi display of actual hardware telemetry remain unreviewed.

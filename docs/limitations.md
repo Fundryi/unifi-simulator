@@ -1,7 +1,8 @@
 # Current limitations and milestone gate
 
 This revision implements experimental M0/M1 synthetic telemetry and M2 read-only
-RouterOS API collection. Actual MikroTik hardware validation remains pending.
+RouterOS API collection. A successful hardware probe is user-confirmed; detailed
+hardware telemetry/UI validation remains pending.
 The M0 success criterion is an actually adopted switch remaining Connected in a real
 test UniFi controller; codec tests and a synthetic HTTP peer cannot satisfy that criterion.
 See `validation.md` for the real 10.6.106 controller API result. Manual UI inspection
@@ -16,9 +17,9 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
   reassociation and exact aging time are not guaranteed. No controller-side purge is used.
 - No real FDB/client correlation, LLDP/MNDP collection, VLAN configuration or hardware
   health sensors. M2 reads device CPU/memory and physical ports through the native API.
-- RouterOS 7.24+ (7.x stable) is version-gated. Actual RB760iGS 7.24.4 permissions,
-  API fields and UniFi display still need local verification; the cloud API connection
-  was refused. TCP/TLS fixtures cannot establish hardware compatibility.
+- RouterOS 7.24+ (7.x stable) is version-gated. The user confirmed a successful
+  RB760iGS 7.24.4 probe after correcting API allowed source IPs. Detailed API values,
+  optional warnings, counter accuracy and actual-hardware UniFi display remain unreviewed.
 - Required RouterOS API failure suppresses inform telemetry and may make the emulator
   appear offline. Optional unknown values are omitted and can retain cached UI values.
 - API-SSL verifies trust and hostname. The requested API/8728 mode sends credentials
