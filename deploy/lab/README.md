@@ -146,7 +146,11 @@ Ordinary local hosts use the normal build command. If `lscr.io` is unavailable, 
 same vendor publishes `ghcr.io/linuxserver/unifi-network-application:latest`; an explicit
 UNIFI_IMAGE override can use it, but record the version/digest used for the experiment.
 
-## Validation performed on 2026-10-15
+## Initial deployment validation on 2026-10-15 (before adoption fix)
+
+The results below describe the original deployment check. Subsequent real adoption
+and Connected observations for 10.6.106, including the DNS payload fix, are recorded
+in [the updated protocol validation](../../docs/validation.md).
 
 Both Compose definitions were validated with Docker Compose 2.40.3. The simulator
 image built using the existing cloud CA override. First initialization of a fresh

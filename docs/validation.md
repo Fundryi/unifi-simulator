@@ -24,8 +24,23 @@ and saved binding, HTTPS scheme/port preservation, literal IPs, DNS failures/tim
 and explicit IPv6 rejection. Ruff and Docker build passed. The rebuilt image also
 passed `scripts/docker-smoke.py` with the synthetic peer and retained UID 10001/health.
 
-Sustained controller-state and emulator-restart observations are recorded below once
-that timed experiment completes. Earlier baseline results follow for historical context.
+A second, fresh production-image container with a new random synthetic identity and
+empty state volume also completed adoption end to end: factory -> key-received ->
+exchanging, with the actual controller reporting adopted/Connected. That test used the
+normal image entrypoint, configured DNS URL and default CBC bootstrap; no packet
+patching, preloaded key or state edits were used.
+
+The first device was sampled through the real controller API for **320 seconds**,
+including an emulator container restart with its existing state volume. All samples
+reported `adopted=true`, `state=1`, eight ports and last_seen age at most 10 seconds.
+The final sample was 320 seconds after the baseline with last_seen age 2 seconds.
+The emulator retained its MAC/private key and continued successful GCM noop exchanges;
+its health command passed. Controller restart and browser UI rendering were not tested.
+Temporary debug settings were removed and only test containers started for this
+experiment were stopped afterwards; persistent lab data and the primary identity were
+retained. No raw traces or credentials were added to Git.
+
+Earlier baseline results follow for historical context.
 
 ## Original onboarding baseline
 
