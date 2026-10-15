@@ -85,7 +85,28 @@ encrypted response was received. UI adoption and sustained connection are manual
 - Connection errors: verify controller service, DNS/routing and TCP 8080. Container
   loopback is not the host or another container; use the Compose service name.
 - HTTP 404: may precede discovery; check the UI. It is not a successful inform.
-- HTTP 400 / decrypt failure: record packet version and encryption. Try a fresh
+- **UniFi 10.6.106, Ready to Adopt -> Adopting, then HTTP 400:** the original emulator
+  copied a Docker DNS hostname into the payload's `inform_url`. Controller logs show
+  `invalid inform_ip unifi-network-application`. The fixed emulator resolves an IPv4
+  address for this JSON field, while keeping the configured hostname for the actual
+  HTTP request, Host header, TLS verification and persisted controller binding. No
+  identity reset, key import, SSH service or database edit is needed. Update/rebuild
+  **the simulator only**, preserving its existing volume and `.env`:
+
+  ```sh
+  git pull
+  cd deploy/lab
+  docker compose -f compose.simulator.yml up -d --build --force-recreate emulator
+  docker compose -f compose.simulator.yml logs -f emulator
+  ```
+
+  If the device is still pending, choose Adopt once in the controller. Watch for
+  `key-received`, successful `setparam`/`noop`, and `exchanging`; verify Connected in
+  the controller. Do not run `down -v`, change the configured controller URL or delete
+  the identity to apply this fix. Leave Inform Host Override unset for the initial
+  experiment; if needed, use the controller's reachable **IPv4 address**, not its
+  Docker DNS hostname. The emulator does not apply controller-selected URL changes.
+- Other HTTP 400 / decrypt failures: record packet version and encryption. Try a fresh
   disposable identity separately with packet version 0, or initial GCM, one variable
   at a time. Never force bootstrap fallback for an adopted identity or borrow real keys.
 - Pending adoption indefinitely: controller might require inbound SSH or additional

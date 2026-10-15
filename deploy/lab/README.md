@@ -36,10 +36,13 @@ certificate; trust that certificate explicitly. Compose `--wait` confirms authen
 MongoDB readiness and controller container startup, not wizard completion. Follow the
 controller logs until the application finishes starting.
 
-In UniFi settings, set **Inform Host Override** to `unifi-network-application` if the
-controller advertises an address the simulator cannot reach. The location varies by
-UniFi version; search settings for “Inform”. This DNS name works inside the lab network.
-Port 8080 remains the device-side inform port; 8443 is the UI port.
+Leave **Inform Host Override** unset initially. The updated emulator uses Docker DNS
+for its connection and reports the controller's resolved IPv4 address in the inform
+payload. UniFi 10.6.106 rejects a DNS hostname in that payload during adoption. If you
+need an override, use the controller's reachable IPv4 address, not
+`unifi-network-application`; inspect the controller's `unifi-lab` network address and
+remember it can change when the container is recreated. Port 8080 remains the device-side
+inform port; 8443 is the UI port. See [the HTTP 400 fix](../../docs/adoption.md).
 
 Then build/start the simulator using the second Compose file:
 
@@ -55,8 +58,9 @@ Its fixed IP is also the IP reported in telemetry. It needs no published ports.
 Verify Adopted/Connected in the UI for at least five minutes; the simulator's
 `exchanging` phase/health status cannot establish controller-side adoption.
 
-The emulator remains experimental: this Compose does not establish compatibility
-with `latest`. The older 8.0.24 experiment and unresolved protocol questions are in
+The emulator remains experimental. A subsequent adoption experiment with 10.6.106 is
+recorded in [validation](../../docs/validation.md); it does not establish compatibility
+with future `latest` images. The older 8.0.24 experiment and unresolved protocol questions are in
 [validation](../../docs/validation.md) and [adoption](../../docs/adoption.md).
 
 ## Images and persistent data

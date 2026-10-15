@@ -2,16 +2,18 @@
 
 The goal is a Docker service that makes RouterOS 7 switches visible in UniFi Network
 through the **device-side inform protocol**, eventually with real ports and wired
-clients. This revision is the initial synthetic protocol probe. It does not connect to
-MikroTik, and successful real-controller adoption has not yet been demonstrated.
+clients. This revision is a synthetic milestone-0 emulator. Adoption and Connected
+state have been observed through an isolated UniFi Network 10.6.106 controller API.
+It does not yet connect to MikroTik; UI rendering and other versions remain unverified.
 
 | Capability | Status |
 | --- | --- |
 | TNBU framing, AES-CBC/GCM, zlib; independent crypto tests | Confirmed working locally |
 | Persisted synthetic identity/key, safe diagnostic CLI, reconnect | Confirmed working with synthetic HTTP peer |
-| Eight-port US8 candidate profile | Experimental; UI acceptance not yet tested |
-| Outbound adoption metadata exchange | Partially working with synthetic peer; actual adoption unverified |
-| UniFi Network 8.0.24 / newer releases | Not yet tested for adoption; see [validation](docs/validation.md) |
+| Eight-port US8 candidate profile | Eight ports accepted by 10.6.106 controller API; UI rendering unverified |
+| Outbound adoption metadata exchange | Confirmed with 10.6.106: private key, GCM, provisioning and noop |
+| UniFi Network 10.6.106 | Adoption/Connected observed through controller API; see [validation](docs/validation.md) |
+| UniFi Network 8.0.24 / other releases | Adoption not yet tested |
 | RouterOS read-only collection, clients, VLANs, LLDP, multi-device CLI | Unsupported in M0; later milestones |
 | Applying controller configuration to MikroTik | Unsupported by design |
 
@@ -94,7 +96,8 @@ Use a lab you control. Bootstrap encryption uses a public protocol constant and 
 is unauthenticated. The state volume contains a private key in a mode-0600 file; protect
 backups. Optional protocol tracing logs metadata only. Never reuse real device identities
 or keys, modify production controller databases, or capture traffic without authorization.
-No compatibility or working MikroTik integration is claimed by this initial release.
+The 10.6.106 result covers the synthetic device only. No working MikroTik integration
+or compatibility with other releases is claimed.
 
 ## Milestones
 
@@ -105,5 +108,6 @@ No compatibility or working MikroTik integration is claimed by this initial rele
 4. Establish topology with explicit observation/inference provenance.
 5. Add independent multi-device orchestration.
 
-Only milestone 0 is implemented here, and its live-adoption success gate remains open.
+Only milestone 0 is implemented here. Controller API observations are documented;
+manual UI inspection and later telemetry milestones remain separate checks.
 License: MIT. Upstream protocol research and licensing notes are recorded in the research document.

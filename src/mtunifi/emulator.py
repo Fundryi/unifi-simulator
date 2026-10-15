@@ -10,6 +10,7 @@ from mtunifi.config import Settings
 from mtunifi.protocol import BOOTSTRAP_KEY, MAX_PAYLOAD, ProtocolError, decode, encode
 from mtunifi.storage import State, Store
 from mtunifi.telemetry import inform
+from mtunifi.transport import advertised_inform_url
 
 logger = logging.getLogger("mtunifi")
 
@@ -90,13 +91,24 @@ class Emulator:
         state.controller_url = self.settings.inform_url
         key = bytes.fromhex(state.authkey.get_secret_value()) if state.authkey else BOOTSTRAP_KEY
         mode = state.encryption if state.authkey else self.settings.encryption
-        body = inform(self.settings, state, int(time.monotonic() - self.started))
-        state.last_attempt = state.last_telemetry = time.time()
-        event("telemetry_generated", ports=len(body["port_table"]), source="synthetic")
-        packet = encode(body, state.mac, key, mode=mode, version=self.settings.packet_version)
-        event("inform_request", bytes=len(packet), phase=state.phase, encryption=mode)
+        state.last_attempt = time.time()
         previous_phase = state.phase
         try:
+            try:
+                async with asyncio.timeout(self.settings.timeout):
+                    report_url = await advertised_inform_url(self.settings.inform_url)
+            except TimeoutError:
+                raise ProtocolError("Controller IPv4 DNS resolution failed") from None
+            body = inform(
+                self.settings,
+                state,
+                int(time.monotonic() - self.started),
+                inform_url=report_url,
+            )
+            state.last_telemetry = time.time()
+            event("telemetry_generated", ports=len(body["port_table"]), source="synthetic")
+            packet = encode(body, state.mac, key, mode=mode, version=self.settings.packet_version)
+            event("inform_request", bytes=len(packet), phase=state.phase, encryption=mode)
             async with client.stream(
                 "POST",
                 self.settings.inform_url,

@@ -127,9 +127,32 @@ Gateway ipv4_active_leases is **not** evidence of a switch wired-client schema.
 How controller topology merges LLDP, FDB and other UniFi devices is unresolved.
 Client visibility, VLAN UI and topology all require separate experiments after adoption.
 
-## 8. Compatibility and next experiment
+## 8. UniFi 10.6.106: DNS payload causes adoption HTTP 400
 
-No source establishes this emulator's compatibility with 8.0.24 or newer releases.
+Confirmed in a private synthetic-device experiment on 2026-10-15, after a user reported
+Ready to Adopt -> Adopting with bootstrap requests changing from HTTP 404 to 400.
+The real controller recognized US8 and explicitly logged that L3 inform discovery
+**skips SSH adoption**. Changing CBC/GCM or packet version 0/1 did not fix the failure.
+With device debug logging enabled, it reported
+`invalid inform_ip unifi-network-application`. The hostname came from our device-side
+JSON `inform_url`, not an explicit `inform_ip` field.
+
+Changing **only** the JSON inform_url to the controller's resolved IPv4 address yielded
+a valid setparam response carrying a fresh private key. The subsequent exchanges
+negotiated GCM, received configuration metadata and noop. Controller API then reported
+`adopted=true`, `state=1` (Connected), eight ports, port 1 up at 1000 Mb/s.
+The final implementation resolves IPv4 for the payload on every exchange but preserves
+the DNS transport URL, Host header, HTTPS certificate validation and persisted identity
+binding. No fabricated field, manual key injection or controller database modification
+was used. DNS failures are bounded, redacted and retried; this profile requires IPv4.
+
+This confirms the outbound key-delivery path for this release, not all controller
+versions or UI features. See `validation.md` for sustained/restart observations.
+
+## 9. Compatibility and next experiment
+
+The original sources do not establish this emulator's compatibility with 8.0.24 or newer releases.
+The specific 10.6.106 observation above supplies independent experimental evidence.
 Packet version, crypto mode, model profile and controller release must be recorded
 independently. A different tag/model string is never evidence of compatibility.
 

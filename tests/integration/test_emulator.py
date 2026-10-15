@@ -1,8 +1,10 @@
 import asyncio
 import json
 import os
+import socket
 import time
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -114,6 +116,58 @@ async def test_controller_change_requires_separate_identity(tmp_path):
     async with httpx.AsyncClient() as client:
         with pytest.raises(RuntimeError):
             await app.exchange(client)
+
+
+async def test_dns_transport_keeps_hostname_but_advertises_ipv4(tmp_path, monkeypatch):
+    app = emulator(tmp_path)
+    app.settings.inform_url = "http://unifi-network-application:8080/inform"
+    resolver = AsyncMock(
+        return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("172.30.88.2", 8080))]
+    )
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", resolver)
+
+    def controller(request):
+        assert request.url.host == "unifi-network-application"
+        assert request.headers["host"] == "unifi-network-application:8080"
+        packet = decode(request.content)
+        # Regression for real UniFi 10.6.106: hostname here causes invalid inform_ip / 400.
+        assert packet.body["inform_url"] == "http://172.30.88.2:8080/inform"
+        response = encode({"_type": "setparam", "mgmt_cfg": f"authkey={KEY.hex()}"}, packet.mac)
+        return httpx.Response(200, stream=httpx.ByteStream(response))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(controller)) as client:
+        assert await app.exchange(client)
+    assert app.state.phase == "key-received"
+    assert app.store.load().controller_url == app.settings.inform_url
+
+
+async def test_dns_error_is_persisted_without_sending_request(tmp_path, monkeypatch):
+    app = emulator(tmp_path)
+    app.settings.inform_url = "http://controller:8080/inform"
+    resolver = AsyncMock(side_effect=socket.gaierror("private details"))
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", resolver)
+
+    def unexpected(request):
+        raise AssertionError("DNS failure must prevent HTTP request")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(unexpected)) as client:
+        assert not await app.exchange(client)
+    assert app.store.load().last_error == "Controller IPv4 DNS resolution failed"
+    assert app.state.last_telemetry is None
+
+
+async def test_dns_lookup_is_bounded_by_timeout(tmp_path, monkeypatch):
+    app = emulator(tmp_path)
+    app.settings.inform_url = "http://controller:8080/inform"
+    app.settings.timeout = 0.01
+
+    async def stalled_resolver(*args, **kwargs):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", stalled_resolver)
+    async with httpx.AsyncClient() as client:
+        assert not await app.exchange(client)
+    assert app.store.load().last_error == "Controller IPv4 DNS resolution failed"
 
 
 @pytest.mark.controller

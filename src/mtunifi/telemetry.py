@@ -16,7 +16,7 @@ class PhysicalPort:
     tx_bytes: int = 0
 
 
-def inform(settings: Settings, state: State, uptime: int) -> dict:
+def inform(settings: Settings, state: State, uptime: int, *, inform_url: str | None = None) -> dict:
     # Names and types are supported by TNBU BaseInformBody/Port_Table; US8 acceptance untested.
     ports = [
         PhysicalPort(index=i, up=i == 1, speed_mbps=1000 if i == 1 else 0) for i in range(1, 9)
@@ -30,7 +30,7 @@ def inform(settings: Settings, state: State, uptime: int) -> dict:
         "serial": state.mac.replace(":", "").upper(),
         "hostname": settings.hostname,
         "ip": settings.device_ip,
-        "inform_url": settings.inform_url,
+        "inform_url": inform_url if inform_url is not None else settings.inform_url,
         "default": state.authkey is None,
         "state": 0 if state.authkey is None else 2,
         "cfgversion": state.cfgversion,

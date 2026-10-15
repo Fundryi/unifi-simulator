@@ -20,6 +20,11 @@ bounded HTTP transport, retry loop and allowlisted management metadata. `storage
 exclusive Linux file lock, atomic mode-0600 state replacement and fsync. `main.py`:
 CLI, safe diagnostics and health command. A state volume survives process/container restarts.
 
+`transport.py` resolves the controller's IPv4 address for the device-side JSON inform_url.
+UniFi 10.6.106 rejects a DNS hostname in that field during adoption. The actual HTTP URL,
+TLS hostname and stored controller binding retain the configured DNS name, allowing
+Docker DNS updates without binding an identity permanently to a transient container IP.
+
 The private adoption key is issued by the controller and persisted. No TLS/SSH device
 keypair is generated because the implemented outbound protocol does not use one.
 The public bootstrap constant is used only before receiving a private key. There is

@@ -1,5 +1,34 @@
 # Executed validation — 2026-10-15
 
+## Subsequent fix: real UniFi Network 10.6.106 adoption
+
+A user reported Ready to Adopt -> Adopting and HTTP 404 -> 400 on 10.6.106.
+The same failure was reproduced in the isolated LinuxServer lab (same image digest
+as `deploy/lab/README.md`). Controller debug logging identified
+`invalid inform_ip unifi-network-application`: the device's JSON inform_url contained
+a Docker DNS name. CBC/GCM and packet version changes alone did not resolve it.
+
+The fix advertises resolved IPv4 in JSON while retaining the configured DNS HTTP/TLS
+destination and saved controller binding. A first corrected bootstrap request received
+a new private key. The rebuilt production container then completed encrypted GCM
+provisioning and noop exchanges. The actual controller API reported `adopted=true`,
+`state=1` (Connected), eight ports, port 1 up at 1000 Mb/s. Emulator health passed.
+No real-device key, manual key injection, SSH server or direct database modification
+was used. An isolated lab administrator session was established through the setup API;
+the browser wizard and port rendering were not inspected. Do not describe this as UI
+validation or proof of supported configuration effects.
+
+Current automated results: **60 passed, 1 skipped** (the default opt-in controller
+test remains disabled). New checks cover DNS vs advertised address, unchanged HTTP Host
+and saved binding, HTTPS scheme/port preservation, literal IPs, DNS failures/timeouts
+and explicit IPv6 rejection. Ruff and Docker build passed. The rebuilt image also
+passed `scripts/docker-smoke.py` with the synthetic peer and retained UID 10001/health.
+
+Sustained controller-state and emulator-restart observations are recorded below once
+that timed experiment completes. Earlier baseline results follow for historical context.
+
+## Original onboarding baseline
+
 Environment: Linux x86_64, host Python 3.12.14, uv 0.12.23, Docker 28.4.0,
 Compose 2.40.3. Container runtime Python 3.12.15. No RouterOS device or user-supplied
 controller/credentials were available. User requested a local lab test procedure.
@@ -37,10 +66,11 @@ started and stopped; its independent volume and image remain available locally.
 | --- | --- | --- | --- |
 | Synthetic HTTP peer | Confirmed locally, CBC/GCM, versions 0/1 | State-machine simulation only | No UI exists |
 | UniFi Network 8.0.24, US8 candidate | Controller started; pre-wizard inform returned 404 | Not yet tested after wizard | Not yet tested |
+| UniFi Network 10.6.106, US8 candidate | Live encrypted key/provisioning/noop exchange | Adopted/Connected observed via controller API after DNS payload fix | Eight ports accepted into API; UI rendering not inspected |
 | Newer UniFi Network versions | Not yet tested | Not yet tested | Not yet tested |
 | RouterOS 7 | Not implemented | Not applicable yet | Not yet tested |
 
-## Remaining M0 gate
+## Original M0 gate (before the 10.6.106 fix)
 
 Complete the isolated controller wizard on a local machine, attempt adoption from
 Devices, and observe the switch remain Connected for at least five minutes. See
