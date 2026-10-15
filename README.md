@@ -35,6 +35,12 @@ a recent valid inform response, with no subsequent error; it cannot prove adopti
 
 ## Docker and adoption
 
+For a **complete local test environment using LinuxServer UniFi Network + authenticated
+MongoDB**, use [deploy/lab](deploy/lab/README.md). It provides two separate Compose projects
+sharing a dedicated network: controller/database first, simulator second. Database
+passwords are generated locally and the simulator has its own persistent identity.
+The commands below remain available for connecting the emulator to another controller.
+
 ```sh
 cp .env.example .env  # preserve an existing .env
 # Edit .env for your authorized isolated controller and emulator IP.

@@ -1,0 +1,36 @@
+name: unifi-simulator-lab
+
+services:
+  emulator:
+    build:
+      context: ../..
+    environment:
+      # Docker DNS resolves the controller across the two Compose projects.
+      MTUNIFI_INFORM_URL: http://unifi-network-application:8080/inform
+      MTUNIFI_DEVICE_IP: ${UNIFI_SIMULATOR_IP:-172.30.88.10}
+      MTUNIFI_HOSTNAME: ${MTUNIFI_HOSTNAME:-mtunifi-lab}
+      MTUNIFI_ENCRYPTION: ${MTUNIFI_ENCRYPTION:-cbc}
+      MTUNIFI_PACKET_VERSION: ${MTUNIFI_PACKET_VERSION:-1}
+      MTUNIFI_TRACE: ${MTUNIFI_TRACE:-false}
+    networks:
+      lab:
+        ipv4_address: ${UNIFI_SIMULATOR_IP:-172.30.88.10}
+    volumes:
+      - simulator-state:/state
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  lab:
+    external: true
+    name: ${UNIFI_LAB_NETWORK:-unifi-lab}
+
+volumes:
+  simulator-state:

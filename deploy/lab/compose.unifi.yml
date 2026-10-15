@@ -1,0 +1,88 @@
+name: unifi-controller-lab
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  unifi-db:
+    # Keep the MongoDB major version fixed; do not use latest.
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Run python3 init-env.py first}
+      MONGO_USER: unifi
+      MONGO_PASS: ${MONGO_PASS:?Run python3 init-env.py first}
+      MONGO_DBNAME: unifi
+      MONGO_AUTHSOURCE: admin
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/10-unifi.js:ro
+    networks:
+      - database
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - >-
+          const admin = db.getSiblingDB('admin');
+          admin.auth(process.env.MONGO_USER, process.env.MONGO_PASS);
+          if (admin.runCommand({connectionStatus: 1}).authInfo.authenticatedUsers.length !== 1)
+            quit(1);
+          if (admin.runCommand({ping: 1}).ok !== 1) quit(1);
+      interval: 10s
+      timeout: 10s
+      start_period: 60s
+      retries: 12
+    restart: unless-stopped
+    logging: *logging
+
+  unifi-network-application:
+    image: ${UNIFI_IMAGE:-lscr.io/linuxserver/unifi-network-application:latest}
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Europe/Prague}
+      MONGO_USER: unifi
+      MONGO_PASS: ${MONGO_PASS:?Run python3 init-env.py first}
+      MONGO_HOST: unifi-db
+      MONGO_PORT: "27017"
+      MONGO_DBNAME: unifi
+      MONGO_AUTHSOURCE: admin
+      MONGO_TLS: "false"
+      MEM_LIMIT: "1024"
+      MEM_STARTUP: "1024"
+    depends_on:
+      unifi-db:
+        condition: service_healthy
+    volumes:
+      - unifi-config:/config
+    ports:
+      - "${UNIFI_BIND_IP:-127.0.0.1}:${UNIFI_HTTPS_PORT:-8443}:8443"
+    networks:
+      lab:
+        aliases:
+          - unifi-network-application
+      database: {}
+    restart: unless-stopped
+    logging: *logging
+
+networks:
+  lab:
+    name: ${UNIFI_LAB_NETWORK:-unifi-lab}
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${UNIFI_LAB_SUBNET:-172.30.88.0/24}
+  database:
+    internal: true
+
+volumes:
+  mongo-data:
+  mongo-config:
+  unifi-config:
