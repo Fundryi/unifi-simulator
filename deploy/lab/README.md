@@ -4,6 +4,10 @@ Two independent Compose projects share a dedicated bridge network, `unifi-lab`.
 The controller owns this network; the simulator joins it as an external network.
 MongoDB lives on another, internal network, reachable only by the controller.
 No host networking, real UniFi equipment or RouterOS credentials are required.
+That remains the default synthetic mode. To use the RB760iGS at 192.168.0.249:8728,
+follow [M2 read-only RouterOS setup](../../docs/routeros.md) and merge
+`compose.routeros.yml` into the simulator project. It preserves the existing adoption
+volume and uses a local password secret, without adding the simulator to the database network.
 
 ```mermaid
 flowchart LR

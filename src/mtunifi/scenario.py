@@ -173,6 +173,9 @@ class SyntheticSource:
         self._last: float | None = None
         self.last_summary: dict | None = None
 
+    async def collect(self, now: float, device_mac: str) -> dict:
+        return self.snapshot(now, device_mac)
+
     @staticmethod
     def _identity_check(scenario: Scenario, device_mac: str):
         if any(c.mac == device_mac for c in scenario.clients) or any(

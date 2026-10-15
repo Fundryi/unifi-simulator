@@ -1,33 +1,35 @@
-# RouterOS mapping plan — not implemented in M0
+# RouterOS mapping — M2 implementation and later work
 
-Do not begin full RouterOS integration until synthetic switch adoption is demonstrated
-or the blocker is documented. No RouterOS connections or writes occur in this revision.
-No RouterOS credentials are required for development of M0.
+Synthetic adoption was demonstrated in M0/M1. M2 now implements read-only native
+RouterOS 7.24+ API collection and vendor-neutral normalization; see [deployment](routeros.md).
+No RouterOS writes exist. The real RB760iGS still needs local validation.
 
-For M2 use RouterOS 7 HTTPS REST or verified API-SSL with a dedicated read-only account,
+Use verified API-SSL or the user's explicitly requested LAN API on 8728 with a dedicated read-only account,
 restrict it to the collector source IP and grant only required read/API permissions.
-Do not enable write/policy/sensitive rights or plaintext management for the emulator.
-Exact permissions and endpoint support must be verified on the target RouterOS build;
-no configuration command is prescribed before that experiment.
+Do not grant write/policy/sensitive rights. Plaintext API is an explicit transport
+selection and never a fallback after failed TLS verification.
+Exact permissions and endpoint support must be verified on the target RouterOS build.
 
 | Normalized entity | Proposed source | Required handling |
 | --- | --- | --- |
-| NetworkDevice / DeviceHealth | system identity/resource | RouterOS version, uptime; unknown health stays unknown |
-| PhysicalPort | interface/ethernet and monitor | Separate Ethernet from bridges/bonds/VLANs; missing speed/duplex stays unknown |
-| LogicalInterface | interface/bridge, bridge/port, vlan, bonding | Preserve membership and hardware offload |
-| TrafficCounters | interface stats | RX/TX direction explicit; uptime/counter reset invalidates rate baseline |
-| VLAN | bridge/vlan and bridge/port | PVID, tagged/untagged ports, dynamic membership; preserve VLAN context |
-| WiredClient | bridge/host plus ARP and DHCP lease enrichment | FDB physical-port authority; MAC+VLAN key, local/router MAC exclusion |
-| Neighbor | ip/neighbor (LLDP/MNDP) | Protocol provenance, local physical port, age and unknown remote port |
+| NetworkDevice / DeviceHealth | system identity/resource | M2: version, uptime, CPU/memory; unknown health stays unknown |
+| PhysicalPort | interface/ethernet and monitor | M2: explicit slot/name mapping; missing speed/duplex stays unknown |
+| LogicalInterface | interface kinds, bridge/port, vlan, bonding | M2: parent/member inventory; configured offload separated from observed active flag |
+| TrafficCounters | interface stats | M2: absolute RX/TX bytes, device uptime, reset warning; no guessed rates |
+| VLAN | bridge/vlan and bridge/port | Later: full tagged/untagged/dynamic membership and client VLAN correlation |
+| WiredClient | bridge/host plus ARP and DHCP lease enrichment | M3: FDB physical-port authority; MAC+VLAN key, local/router MAC exclusion |
+| Neighbor | ip/neighbor (LLDP/MNDP) | M4: protocol provenance, local physical port, age and unknown remote port |
 
 An ARP or DHCP entry does not prove physical attachment. A missing IP does not make an
 FDB client offline. Age FDB entries based on observed expiry, not ARP absence. Several
 MACs behind one port may indicate an unmanaged switch; preserve uncertainty rather
 than inventing intermediate topology. Do not assume MikroTik is DHCP server or gateway.
 Treat failed optional API tables as unavailable with a warning, not as empty authoritative
-data. Missing required interface/FDB data must degrade the snapshot explicitly.
+data. Missing required interface data suppresses M2 informs; FDB failures must be
+handled explicitly when M3 introduces that source.
 
-Later tests must cover hardware offload, VLAN-aware bridges, duplicate MAC across VLANs,
+M2 tests cover wire/TLS/API errors, permissions, physical/logical separation, configured
+vs active hardware offload, VLAN parents, bonds, counters/resets and reconnect.
+Later tests must cover VLAN-aware FDB collection, duplicate MAC across VLANs,
 unknown IP, MAC movement/aging, local MAC exclusion, incomplete neighbors, counter reset,
-permission denial, endpoint absence and per-device reconnect. These tests are deferred,
-not silently represented by protocol tests in M0.
+MAC correlation and neighbor age. Those behaviors remain deferred.

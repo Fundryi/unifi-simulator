@@ -1,4 +1,44 @@
-# Executed validation — 2026-10-15
+# Executed validation — latest 2026-10-16
+
+## Milestone 2: RouterOS API collector — 2026-10-16
+
+The user selected an RB760iGS at 192.168.0.249:8728 running RouterOS 7.24.4 and
+explicitly requested native API without TLS. The cloud TCP connection was refused;
+no RouterOS credentials were present. **Actual hardware collection/permissions and
+field compatibility are not validated.** The local probe procedure is in `routeros.md`.
+
+The implementation was tested against independent loopback RouterOS sentence peers,
+both plaintext TCP and certificate-verified API-SSL. The fixtures represent six physical
+ports, bridges, VLANs, a bond, very large counters, uptime and CPU/memory. No actual
+MikroTik state was read or modified by those tests.
+
+| Check | Observed outcome |
+| --- | --- |
+| Stable explicit RB760iGS mapping | Six named Ethernet/SFP ports despite reversed API ordering; two disabled US8 slots |
+| Data fidelity | RX above 2^53 retained exactly, observed 1 Gb/s / 100 Mb/s links, down/disabled ports, device uptime |
+| Logical interfaces/offload | Bridge, VLAN parent/ID and bond members retained separately; configured hw=yes did not fabricate active offload |
+| Optional failure | Permission/endpoint rejection marked unavailable/degraded, unknown speed/duplex/health omitted |
+| Required failure | No inform or synthetic replacement; old observation retained only for diagnosis, adoption key preserved |
+| Recovery/reset | Bounded reconnect/backoff, counter/uptime decrease warning, no identity reset |
+| Protocol bounds/auth | Reserved/oversized lengths, malformed/missing counters, unsafe command paths and authentication failures rejected/redacted |
+| API-SSL | Trusted fixture accepted; untrusted and wrong-host certificates rejected before credentials |
+| Container, TCP and TLS | UID 10001, read-only root, mounted secret/map/CA, CBC-to-GCM exchange, same identity/key across recreation, probe and health passed |
+| Compose override | Same simulator project/state volume, dedicated lab network/static IP, explicit plaintext 8728, no synthetic file |
+| Actual UniFi 10.6.106, RouterOS fixture source | Adopted/Connected via controller API, eight slots, source port 1 speed=1000 and RX=9007199254740994, reserved slot 7 down, CPU=23 / memory=50.0 accepted |
+
+The last check used the production container and a real isolated UniFi controller,
+but RouterOS observations came from the wire fixture, **not the physical RB760iGS**.
+Browser rendering, real switch-chip counter accuracy and actual hardware reconnect
+remain unverified. Only this experiment's synthetic device was adopted/deleted through
+the lab API; no database edits or user adoption volumes were used.
+
+Final automated result with Docker opt-in enabled: **153 passed, 1 skipped** (real
+controller pytest opt-in). The two Docker cases are skipped without their explicit
+opt-in; the regular suite is 151 passed / 3 skipped. Ruff lint/format, Docker build
+with TLS verification retained, and merged Compose validation passed. Existing M0/M1
+and re-adoption tests remain green. No dependency or lockfile changes were required.
+The rebuilt image also passed the existing synthetic `scripts/docker-smoke.py`
+check, including GCM/key persistence, scenario mounts, clients/LLDP and health.
 
 ## Re-adoption after deleting a device in 10.6.106
 

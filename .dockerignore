@@ -1,6 +1,7 @@
 .git
 .venv
 .state
+.secrets
 .env
 **/.env
 examples/local

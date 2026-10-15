@@ -99,7 +99,10 @@ class Store:
             data = json.loads((self.directory / "telemetry.json").read_bytes())
         except FileNotFoundError:
             return None
-        if not isinstance(data, dict) or not isinstance(data.get("active_clients"), int):
+        if not isinstance(data, dict) or not (
+            isinstance(data.get("active_clients"), int)
+            or (data.get("source") == "routeros" and data.get("active_clients") is None)
+        ):
             raise ValueError("Invalid telemetry snapshot")
         return data
 

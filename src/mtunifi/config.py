@@ -1,9 +1,10 @@
 import ipaddress
 import os
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Settings(BaseModel):
@@ -19,11 +20,69 @@ class Settings(BaseModel):
     timeout: float = Field(default=10, ge=1, le=120)
     trace: bool = False
     synthetic_file: Path | None = None
+    telemetry_source: Literal["synthetic", "routeros"] = "synthetic"
+    routeros_host: str | None = None
+    routeros_port: int = Field(default=8729, ge=1, le=65535)
+    routeros_tls: bool = True
+    routeros_user: str | None = Field(default=None, min_length=1, max_length=128, repr=False)
+    routeros_password_file: Path | None = None
+    routeros_ca_file: Path | None = None
+    routeros_map_file: Path | None = None
+    routeros_timeout: float = Field(default=10, ge=1, le=120)
+    routeros_poll_interval: float = Field(default=10, ge=5, le=300)
 
-    @field_validator("synthetic_file", mode="before")
+    @field_validator(
+        "synthetic_file",
+        "routeros_password_file",
+        "routeros_ca_file",
+        "routeros_map_file",
+        mode="before",
+    )
     @classmethod
     def optional_scenario(cls, value):
         return None if value == "" else value
+
+    @field_validator("routeros_host")
+    @classmethod
+    def valid_routeros_host(cls, value):
+        if value is None:
+            return value
+        try:
+            return str(ipaddress.ip_address(value))
+        except ValueError:
+            if (
+                not value
+                or len(value) > 253
+                or any(
+                    c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"
+                    for c in value
+                )
+            ):
+                raise ValueError("Expected a hostname or IP, without URL or port") from None
+        return value
+
+    @field_validator("routeros_user")
+    @classmethod
+    def valid_routeros_user(cls, value):
+        if value is not None and any(ord(c) < 32 or ord(c) == 127 for c in value):
+            raise ValueError("Control characters are not allowed")
+        return value
+
+    @model_validator(mode="after")
+    def source_settings(self):
+        if self.telemetry_source == "routeros":
+            if not all(
+                (
+                    self.routeros_host,
+                    self.routeros_user,
+                    self.routeros_password_file,
+                    self.routeros_map_file,
+                )
+            ):
+                raise ValueError("RouterOS host, user, password file and port map are required")
+            if self.synthetic_file is not None:
+                raise ValueError("Select either a synthetic scenario or RouterOS collection")
+        return self
 
     @field_validator("inform_url")
     @classmethod

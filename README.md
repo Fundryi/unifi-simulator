@@ -1,10 +1,12 @@
-# MikroTik UniFi Switch Emulator — experimental M0
+# MikroTik UniFi Switch Emulator — experimental M0–M2
 
 The goal is a Docker service that makes RouterOS 7 switches visible in UniFi Network
 through the **device-side inform protocol**, eventually with real ports and wired
-clients. This revision implements synthetic milestones 0 and 1. Adoption and Connected
+clients. This revision implements synthetic milestones 0/1 and a read-only RouterOS
+7.24+ API collector for milestone 2. Adoption and Connected
 state have been observed through an isolated UniFi Network 10.6.106 controller API.
-It does not yet connect to MikroTik; UI rendering and other versions remain unverified.
+Actual RB760iGS collection still needs local verification; UI rendering and other
+controller versions remain unverified.
 
 | Capability | Status |
 | --- | --- |
@@ -16,7 +18,8 @@ It does not yet connect to MikroTik; UI rendering and other versions remain unve
 | Outbound adoption metadata exchange | Confirmed with 10.6.106: private key, GCM, provisioning and noop |
 | UniFi Network 10.6.106 | Adoption/Connected observed through controller API; see [validation](docs/validation.md) |
 | UniFi Network 8.0.24 / other releases | Adoption not yet tested |
-| RouterOS collection, real FDB/topology, VLAN configuration, multi-device CLI | Not implemented; later milestones |
+| Read-only RouterOS 7.24+ API/API-SSL, six-port RB760iGS mapping | Implemented; TCP/TLS fixtures tested, actual device validation pending |
+| Real FDB/topology, VLAN configuration, multi-device CLI | Not implemented; later milestones |
 | Applying controller configuration to MikroTik | Unsupported by design |
 
 ## Development quick start
@@ -41,6 +44,8 @@ a recent valid inform response, with no subsequent error; it cannot prove adopti
 
 For synthetic ports/traffic/client/LLDP scenarios, hot reload and upgrading an existing
 adopted device, see [Milestone 1 telemetry](docs/synthetic-telemetry.md).
+For the **RB760iGS at 192.168.0.249:8728**, read-only credentials, port mapping and
+switching the existing lab to real observations, see [Milestone 2 RouterOS](docs/routeros.md).
 The lab Compose now selects the demo scenario by default and preserves adoption state.
 If you deleted the device in UniFi and now see GCM `exchanging` with HTTP 400,
 follow [re-adoption without changing MAC](docs/adoption.md#re-adopt-a-device-deleted-from-the-controller).
@@ -82,7 +87,8 @@ tests are opt-in; the ordinary test suite never contacts UniFi or MikroTik equip
 
 ## Architecture and research
 
-Configuration -> synthetic profile -> inform state machine -> TNBU codec -> controller.
+Configuration -> synthetic source or RouterOS API collector -> snapshot mapping ->
+inform state machine -> TNBU codec -> controller.
 Atomic per-device state stores identity and the controller-issued private key. The only
 accepted provisioning effects are emulator metadata (key, encryption, cfgversion)
 and a private-key `setdefault` reset of local adoption metadata.
@@ -91,13 +97,14 @@ firmware download, RouterOS writes, external database or management web endpoint
 
 - [Protocol research and unresolved questions](docs/protocol-research.md)
 - [Architecture and future integration boundaries](docs/architecture.md)
-- [RouterOS mapping and permissions plan](docs/routeros-mapping.md)
+- [RouterOS deployment and diagnostics](docs/routeros.md)
+- [RouterOS mapping and remaining collection work](docs/routeros-mapping.md)
 - [Limitations and security](docs/limitations.md)
 - [Executed validation and compatibility evidence](docs/validation.md)
 
-RouterOS setup is intentionally deferred: no credentials or device configuration are
-needed for M0. Future collection must use TLS-verified API/REST and a dedicated account
-with read-only permissions; it must not require MikroTik to provide DHCP or routing.
+Synthetic mode needs no RouterOS credentials. RouterOS mode uses a dedicated read-only
+API account and a mounted password file; MikroTik need not provide DHCP or routing.
+API-SSL verifies certificates; the requested plaintext LAN API mode is explicit.
 
 ## Security and compatibility
 
@@ -105,8 +112,8 @@ Use a lab you control. Bootstrap encryption uses a public protocol constant and 
 is unauthenticated. The state volume contains a private key in a mode-0600 file; protect
 backups. Optional protocol tracing logs metadata only. Never reuse real device identities
 or keys, modify production controller databases, or capture traffic without authorization.
-The 10.6.106 result covers the synthetic device only. No working MikroTik integration
-or compatibility with other releases is claimed.
+The 10.6.106 result covers the synthetic UniFi profile. Actual MikroTik collection
+and compatibility with other controller releases are not yet established.
 
 ## Milestones
 
@@ -117,6 +124,6 @@ or compatibility with other releases is claimed.
 4. Establish topology with explicit observation/inference provenance.
 5. Add independent multi-device orchestration.
 
-Milestones 0 and 1 are implemented with real controller API observations. Manual UI
-inspection, RouterOS integration and subsequent milestones remain separate work.
+Milestones 0 and 1 have real controller API observations. M2 collection is implemented
+and fixture-tested; actual RouterOS device validation and manual UI inspection remain.
 License: MIT. Upstream protocol research and licensing notes are recorded in the research document.

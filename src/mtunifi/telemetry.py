@@ -1,4 +1,4 @@
-"""Minimal synthetic profile. No field is a claim about MikroTik observations."""
+"""UniFi identity envelope over explicitly selected synthetic or observed telemetry."""
 
 import time
 
@@ -16,6 +16,8 @@ def inform(
     snapshot: dict | None = None,
 ) -> dict:
     if snapshot is None:
+        if settings.telemetry_source != "synthetic":
+            raise ValueError("RouterOS telemetry requires a collected snapshot")
         snapshot = SyntheticSource(settings.synthetic_file).snapshot(0, state.mac)
     return {
         "model": "US8",

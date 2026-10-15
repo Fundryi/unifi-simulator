@@ -8,7 +8,9 @@ from pydantic import SecretStr
 
 from mtunifi.config import Settings
 from mtunifi.protocol import BOOTSTRAP_KEY, MAX_PAYLOAD, ProtocolError, decode, encode
-from mtunifi.scenario import ScenarioError, SyntheticSource
+from mtunifi.routeros_api import RouterOSError
+from mtunifi.scenario import ScenarioError
+from mtunifi.sources import TelemetrySource, create_source
 from mtunifi.storage import State, Store
 from mtunifi.telemetry import inform
 from mtunifi.transport import advertised_inform_url
@@ -85,12 +87,12 @@ def apply_response(state: State, response: dict) -> float | None:
 
 class Emulator:
     def __init__(
-        self, settings: Settings, store: Store, state: State, source: SyntheticSource | None = None
+        self, settings: Settings, store: Store, state: State, source: TelemetrySource | None = None
     ):
         self.settings, self.store, self.state = settings, store, state
         self.started = time.monotonic()
         self.delay = settings.interval
-        self.source = source if source is not None else SyntheticSource(settings.synthetic_file)
+        self.source = source if source is not None else create_source(settings)
         self._reset_hint_logged = False
 
     async def exchange(self, client: httpx.AsyncClient) -> bool:
@@ -115,7 +117,7 @@ class Emulator:
                 state,
                 int(time.monotonic() - self.started),
                 inform_url=report_url,
-                snapshot=self.source.snapshot(time.monotonic(), state.mac),
+                snapshot=await self.source.collect(time.monotonic(), state.mac),
             )
             state.last_telemetry = time.time()
             self.store.save_telemetry(
@@ -124,9 +126,9 @@ class Emulator:
             event(
                 "telemetry_generated",
                 ports=len(body["port_table"]),
-                source="synthetic",
+                source=self.settings.telemetry_source,
                 clients=self.source.last_summary["active_clients"],
-                neighbors=len(body["lldp_table"]),
+                neighbors=len(body["lldp_table"]) if "lldp_table" in body else None,
                 scenario_status=self.source.status,
             )
             packet = encode(body, state.mac, key, mode=mode, version=self.settings.packet_version)
@@ -179,11 +181,15 @@ class Emulator:
             state.last_error = None
             self._reset_hint_logged = False
             event("inform_success", phase=state.phase)
-        except (httpx.HTTPError, ProtocolError, ScenarioError) as exc:
+        except (httpx.HTTPError, ProtocolError, ScenarioError, RouterOSError) as exc:
             # Exception strings from HTTP libraries can include URLs or credentials: never log them.
             state.last_error = (
-                str(exc) if isinstance(exc, (ProtocolError, ScenarioError)) else type(exc).__name__
+                str(exc)
+                if isinstance(exc, (ProtocolError, ScenarioError, RouterOSError))
+                else type(exc).__name__
             )
+            if isinstance(exc, RouterOSError) and self.source.last_summary is not None:
+                self.store.save_telemetry(self.source.last_summary | {"updated_at": time.time()})
             self.delay = min(60, max(self.settings.interval, self.delay * 2))
             event("inform_failure", reason=state.last_error, retry_seconds=self.delay)
             if (

@@ -1,0 +1,22 @@
+# Merge with compose.simulator.yml. Same project and adoption volume; no new identity.
+services:
+  emulator:
+    environment:
+      MTUNIFI_TELEMETRY_SOURCE: routeros
+      MTUNIFI_SYNTHETIC_FILE: ""
+      MTUNIFI_ROUTEROS_HOST: ${MTUNIFI_ROUTEROS_HOST:-192.168.0.249}
+      MTUNIFI_ROUTEROS_PORT: ${MTUNIFI_ROUTEROS_PORT:-8728}
+      # Explicit plaintext API for the requested LAN test. No automatic TLS fallback.
+      MTUNIFI_ROUTEROS_TLS: ${MTUNIFI_ROUTEROS_TLS:-false}
+      MTUNIFI_ROUTEROS_USER: ${MTUNIFI_ROUTEROS_USER:?Set the dedicated read-only API username}
+      MTUNIFI_ROUTEROS_PASSWORD_FILE: /run/secrets/routeros_password
+      MTUNIFI_ROUTEROS_CA_FILE: ${MTUNIFI_ROUTEROS_CA_FILE:-}
+      MTUNIFI_ROUTEROS_MAP_FILE: /scenarios/${MTUNIFI_ROUTEROS_MAP:-routeros-rb760igs.json}
+      MTUNIFI_ROUTEROS_POLL_INTERVAL: ${MTUNIFI_ROUTEROS_POLL_INTERVAL:-10}
+      MTUNIFI_ROUTEROS_TIMEOUT: ${MTUNIFI_ROUTEROS_TIMEOUT:-10}
+    secrets:
+      - routeros_password
+
+secrets:
+  routeros_password:
+    file: ../../.secrets/routeros-password

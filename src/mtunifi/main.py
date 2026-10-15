@@ -9,7 +9,9 @@ from pydantic import ValidationError
 
 from mtunifi.config import Settings
 from mtunifi.emulator import Emulator
+from mtunifi.routeros_api import RouterOSError
 from mtunifi.scenario import ScenarioError, SyntheticSource
+from mtunifi.sources import create_source
 from mtunifi.storage import Store
 from mtunifi.telemetry import inform
 
@@ -26,6 +28,7 @@ def main() -> int:
             "health",
             "validate-scenario",
             "reset-adoption",
+            "probe-routeros",
         ),
     )
     parser.add_argument("--once", action="store_true", help="Run one inform; nonzero on failure")
@@ -35,6 +38,13 @@ def main() -> int:
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     try:
         settings = Settings.from_env()
+        if args.command == "probe-routeros":
+            if settings.telemetry_source != "routeros":
+                raise ValueError("Select RouterOS collection to probe the API")
+            source = create_source(settings)
+            asyncio.run(source.collect(time.monotonic(), ""))
+            print(json.dumps(source.last_summary, indent=2))
+            return 0
         if args.command == "validate-scenario":
             source = SyntheticSource(settings.synthetic_file)
             print(
@@ -71,6 +81,19 @@ def main() -> int:
         if args.command in ("diagnose", "health"):
             state = store.load()
             age = time.time() - state.last_inform if state.last_inform else None
+            telemetry = store.load_telemetry()
+            if telemetry and telemetry.get("source") != settings.telemetry_source:
+                telemetry = None
+            routeros = settings.telemetry_source == "routeros"
+            source_ready = not routeros or (
+                telemetry is not None
+                and telemetry.get("source") == "routeros"
+                and telemetry.get("status") in ("active", "degraded")
+                and telemetry.get("observed_at") is not None
+                and 0
+                <= time.time() - telemetry["observed_at"]
+                <= settings.routeros_poll_interval * 3 + settings.routeros_timeout
+            )
             if args.command == "health":
                 return (
                     0
@@ -79,22 +102,32 @@ def main() -> int:
                         and 0 <= age <= 660
                         and state.last_error is None
                         and state.controller_url == settings.inform_url
+                        and source_ready
                     )
                     else 1
                 )
-            telemetry = store.load_telemetry()
+            observations = telemetry.get("observations") if telemetry and routeros else None
+            routeros_status = (
+                (telemetry.get("status", "unavailable") if telemetry else "unavailable")
+                if routeros
+                else "disabled"
+            )
             print(
                 json.dumps(
                     state.public()
                     | {
                         "controller": settings.inform_url,
                         "last_inform_age_seconds": age,
-                        "routeros": "not-implemented",
-                        "discovered_ports": 0,
-                        "synthetic_ports": 8,
-                        "wired_clients": telemetry["active_clients"] if telemetry else 0,
-                        "wired_clients_source": "synthetic",
-                        "synthetic_telemetry": telemetry,
+                        "routeros": routeros_status,
+                        "telemetry_source": settings.telemetry_source,
+                        "discovered_ports": len(observations["ports"]) if observations else 0,
+                        "synthetic_ports": 0 if routeros else 8,
+                        "wired_clients": (
+                            telemetry["active_clients"] if telemetry else None if routeros else 0
+                        ),
+                        "wired_clients_source": "not-collected" if routeros else "synthetic",
+                        "synthetic_telemetry": None if routeros else telemetry,
+                        "routeros_telemetry": telemetry if routeros else None,
                         "adoption_note": (
                             "Exchanging is a protocol state; verify adoption in controller UI"
                         ),
@@ -103,7 +136,9 @@ def main() -> int:
                 )
             )
             return 0
-        source = SyntheticSource(settings.synthetic_file) if args.command != "init" else None
+        if args.command == "sample" and settings.telemetry_source != "synthetic":
+            raise ValueError("Use probe-routeros for observed telemetry")
+        source = create_source(settings) if args.command != "init" else None
         with store.lock():
             state = store.load_or_create()
             if args.command == "init":
@@ -120,6 +155,8 @@ def main() -> int:
         details = (
             {"reason": str(exc), "issues": exc.issues} if isinstance(exc, ScenarioError) else {}
         )
+        if isinstance(exc, RouterOSError):
+            details = {"reason": str(exc)}
         print(
             json.dumps(
                 {
