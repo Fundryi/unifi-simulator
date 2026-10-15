@@ -1,9 +1,11 @@
-# RouterOS mapping — M2 implementation and later work
+# RouterOS mapping — M2/M3 implementation and later work
 
 Synthetic adoption was demonstrated in M0/M1. M2 now implements read-only native
-RouterOS 7.24+ API collection and vendor-neutral normalization; see [deployment](routeros.md).
+RouterOS 7.24+ API collection and vendor-neutral normalization; M3 adds
+[FDB/ARP/DHCP client correlation](wired-clients.md). See [deployment](routeros.md).
 No RouterOS writes exist. The user confirmed a successful RB760iGS 7.24.4 probe;
-detailed hardware field/UI validation remains separate.
+live port activity/statistics in UniFi are also user-confirmed. Actual M3 hardware
+client correlation remains unverified.
 
 Use verified API-SSL or the user's explicitly requested LAN API on 8728 with a dedicated read-only account,
 restrict it to the collector source IP and grant only required read/API permissions.
@@ -17,7 +19,7 @@ Exact permissions and endpoint support must be verified on the target RouterOS b
 | PhysicalPort | interface/ethernet and monitor | M2: explicit slot/name mapping; missing speed/duplex stays unknown |
 | LogicalInterface | interface kinds, bridge/port, vlan, bonding | M2: parent/member inventory; configured offload separated from observed active flag |
 | TrafficCounters | interface stats | M2: absolute RX/TX bytes, device uptime, reset warning; no guessed rates |
-| VLAN | bridge/vlan and bridge/port | Later: full tagged/untagged/dynamic membership and client VLAN correlation |
+| VLAN | bridge/vlan and bridge/port | M3: compact VID ranges, configured/current tagged/untagged and dynamic membership, scoped enrichment |
 | WiredClient | bridge/host plus ARP and DHCP lease enrichment | M3: FDB physical-port authority; MAC+VLAN key, local/router MAC exclusion |
 | Neighbor | ip/neighbor (LLDP/MNDP) | M4: protocol provenance, local physical port, age and unknown remote port |
 
@@ -26,11 +28,13 @@ FDB client offline. Age FDB entries based on observed expiry, not ARP absence. S
 MACs behind one port may indicate an unmanaged switch; preserve uncertainty rather
 than inventing intermediate topology. Do not assume MikroTik is DHCP server or gateway.
 Treat failed optional API tables as unavailable with a warning, not as empty authoritative
-data. Missing required interface data suppresses M2 informs; FDB failures must be
-handled explicitly when M3 introduces that source.
+data. Missing required interface data suppresses informs. Failed/invalid FDB omits
+MAC tables and reports unknown clients while port informs continue; a successful
+empty FDB emits empty MAC tables. Static-only or ambiguous attachment stays diagnostic.
 
 M2 tests cover wire/TLS/API errors, permissions, physical/logical separation, configured
 vs active hardware offload, VLAN parents, bonds, counters/resets and reconnect.
-Later tests must cover VLAN-aware FDB collection, duplicate MAC across VLANs,
-unknown IP, MAC movement/aging, local MAC exclusion, incomplete neighbors, counter reset,
-MAC correlation and neighbor age. Those behaviors remain deferred.
+M3 tests cover VLAN-aware FDB, duplicate MAC across VLANs/bridges, unknown/conflicting
+IP, moves/removal/reappearance, local MAC exclusion, external hardware learning,
+ambiguous bonds and optional-source failures. Neighbor observation/age and inferred
+topology remain M4.

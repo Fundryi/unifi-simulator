@@ -94,16 +94,35 @@ class Table(StrEnum):
     BRIDGE_PORTS = "/interface/bridge/port/print"
     VLANS = "/interface/vlan/print"
     BONDS = "/interface/bonding/print"
+    BRIDGES = "/interface/bridge/print"
+    BRIDGE_VLANS = "/interface/bridge/vlan/print"
+    BRIDGE_HOSTS = "/interface/bridge/host/print"
+    ARP = "/ip/arp/print"
+    DHCP_LEASES = "/ip/dhcp-server/lease/print"
+    DHCP_SERVERS = "/ip/dhcp-server/print"
 
 
 PROPERTIES = {
     Table.RESOURCE: "version,uptime,cpu-load,total-memory,free-memory,board-name,architecture-name",
     Table.IDENTITY: "name",
-    Table.INTERFACES: ".id,name,type,disabled,running,rx-byte,tx-byte",
+    Table.INTERFACES: ".id,name,type,mac-address,disabled,running,rx-byte,tx-byte",
     Table.ETHERNET: ".id,name,default-name,mac-address,disabled,running",
     Table.BRIDGE_PORTS: "interface,bridge,hw,hw-offload,disabled,pvid",
     Table.VLANS: "name,interface,vlan-id",
     Table.BONDS: "name,slaves,mode",
+    Table.BRIDGES: "name,mac-address,admin-mac,vlan-filtering,pvid,ageing-time",
+    Table.BRIDGE_VLANS: (
+        "bridge,vlan-ids,tagged,untagged,current-tagged,current-untagged,dynamic,disabled"
+    ),
+    Table.BRIDGE_HOSTS: (
+        "mac-address,vid,on-interface,bridge,local,dynamic,external,invalid,disabled"
+    ),
+    Table.ARP: "address,mac-address,interface,status,complete,invalid,disabled",
+    Table.DHCP_LEASES: (
+        "address,mac-address,active-address,active-mac-address,active-server,host-name,status,"
+        "server,disabled,blocked"
+    ),
+    Table.DHCP_SERVERS: "name,interface,disabled,invalid",
 }
 MONITOR = "/interface/ethernet/monitor"
 

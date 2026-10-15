@@ -125,7 +125,7 @@ def main() -> int:
                         "wired_clients": (
                             telemetry["active_clients"] if telemetry else None if routeros else 0
                         ),
-                        "wired_clients_source": "not-collected" if routeros else "synthetic",
+                        "wired_clients_source": "routeros-fdb" if routeros else "synthetic",
                         "synthetic_telemetry": None if routeros else telemetry,
                         "routeros_telemetry": telemetry if routeros else None,
                         "adoption_note": (

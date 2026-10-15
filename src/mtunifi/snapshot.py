@@ -46,6 +46,53 @@ class BridgeMember:
     pvid: int | None
     hardware_offload_requested: bool | None
     hardware_offload_active: bool | None
+    enabled: bool | None = None
+
+
+@dataclass(frozen=True)
+class BridgeConfig:
+    name: str
+    vlan_filtering: bool | None
+    pvid: int | None
+    ageing_time_seconds: int | None
+
+
+@dataclass(frozen=True)
+class BridgeVLAN:
+    bridge: str
+    ranges: tuple[tuple[int, int], ...]
+    tagged: tuple[str, ...] | None
+    untagged: tuple[str, ...] | None
+    current_tagged: tuple[str, ...] | None
+    current_untagged: tuple[str, ...] | None
+    dynamic: bool | None
+
+
+@dataclass(frozen=True)
+class WiredClient:
+    mac: str
+    bridge: str
+    interface: str | None
+    vlan: int | None
+    port_idx: int | None
+    attachment: str
+    dynamic: bool | None
+    external: bool | None
+    ip: str | None = None
+    hostname: str | None = None
+    ip_sources: tuple[str, ...] = ()
+    ip_candidates: tuple[str, ...] = ()
+    observed_uptime_seconds: int = 0
+    conflicting_interfaces: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ClientInventory:
+    clients: tuple[WiredClient, ...] | None
+    sources: dict[str, str]
+    fdb_rows: int = 0
+    excluded_local: int = 0
+    skipped_rows: int = 0
 
 
 @dataclass(frozen=True)
@@ -55,18 +102,43 @@ class DeviceSnapshot:
     logical_interfaces: tuple[LogicalInterface, ...] = ()
     bridge_members: tuple[BridgeMember, ...] | None = None
     warnings: tuple[str, ...] = ()
+    bridges: tuple[BridgeConfig, ...] | None = None
+    bridge_vlans: tuple[BridgeVLAN, ...] | None = None
+    wired: ClientInventory | None = None
 
     def public(self) -> dict:
         return asdict(self)
 
 
-def unifi_snapshot(snapshot: DeviceSnapshot) -> dict:
+def unifi_snapshot(snapshot: DeviceSnapshot, *, age_seconds: int = 0) -> dict:
     by_slot = {port.port_idx: port for port in snapshot.ports}
+    clients_by_port: dict[int, list] = {i: [] for i in range(1, 9)}
+    clients = snapshot.wired.clients if snapshot.wired is not None else None
+    for client in clients or ():
+        port = by_slot.get(client.port_idx)
+        if client.attachment != "physical" or port is None or not port.enabled or not port.up:
+            continue
+        entry = {
+            "mac": client.mac,
+            "age": max(0, age_seconds),
+            "uptime": client.observed_uptime_seconds + max(0, age_seconds),
+            "static": False,  # Only dynamic or externally learned FDB clients are emitted.
+        }
+        if client.vlan is not None:
+            entry["vlan"] = client.vlan
+        if client.ip is not None:
+            entry["ip"] = client.ip
+        if client.hostname is not None:
+            entry["hostname"] = client.hostname
+        clients_by_port[client.port_idx].append(entry)
     ports = []
     for slot in range(1, 9):
         port = by_slot.get(slot)
         if port is None:
-            ports.append({"port_idx": slot, "enable": False, "up": False, "speed": 0})
+            entry = {"port_idx": slot, "enable": False, "up": False, "speed": 0}
+            if clients is not None:
+                entry["mac_table"] = []
+            ports.append(entry)
             continue
         entry = {
             "port_idx": slot,
@@ -86,6 +158,8 @@ def unifi_snapshot(snapshot: DeviceSnapshot) -> dict:
                 entry["full_duplex"] = port.full_duplex
         if port.autoneg is not None:
             entry["autoneg"] = port.autoneg
+        if clients is not None:
+            entry["mac_table"] = clients_by_port[slot]
         ports.append(entry)
     health = snapshot.health
     stats = {}
@@ -96,5 +170,5 @@ def unifi_snapshot(snapshot: DeviceSnapshot) -> dict:
     body = {"port_table": ports, "uptime": health.uptime_seconds}
     if stats:
         body["system-stats"] = stats
-    # No FDB, ARP, DHCP, neighbors or synthetic clients are inferred in milestone 2.
+    # Neighbor/topology collection remains separate. Unknown IP/VLAN is never fabricated.
     return body

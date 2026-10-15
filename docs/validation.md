@@ -1,5 +1,48 @@
 # Executed validation — latest 2026-10-16
 
+## Milestone 3: FDB clients, VLAN and IPv4 enrichment — 2026-10-16
+
+The user confirmed M2 live port activity and correct statistics from their RB760iGS
+in UniFi before requesting M3. Physical-device M3 client collection has not yet been
+reported. M3 was exercised with independent native RouterOS API wire fixtures and
+the actual isolated UniFi 10.6.106 controller, using the production Docker image.
+Every client entered through encrypted device-side informs; no controller client
+creation/purge, direct database writes or real-device identity/key imports were used.
+
+| Experiment | Observed outcome |
+| --- | --- |
+| Unfiltered bridge | Two FDB clients on port 2; unknown VID omitted rather than defaulted to VLAN 1 |
+| ARP/DHCP enrichment | Known client IP/name accepted; external hardware-learned client retained with unknown IP/name |
+| Local identities | Interface, bridge/admin, local-FDB and emulator MACs excluded in tests |
+| Move and loss of enrichment | Source moved client 2→3; controller recorded port 3 and IP=null in that test |
+| FDB permission denied | Port informs continued, controller stayed Connected, source client count=null/degraded |
+| Complete empty FDB | Source emitted empty MAC tables/count=0; controller retained two cached client records |
+| VLAN-aware bridge | New clients in VID 20/30 appeared on controller ports 2/3 with their scoped IPv4 values |
+| Same MAC across VLANs | Native API/normalizer tests retained independent VID/IP records; controller's single-MAC view is not guaranteed to show both |
+| Invalid/oversized FDB | Invalid identity rows yielded unknown inventory; native row limit aborted the poll without silently presenting a partial FDB as complete |
+| Ambiguity | Bond/unmapped/static-only/contradictory attachments and duplicate bridge namespaces were not guessed into live physical ports |
+
+The first real-controller run accepted ordinary global client MACs, an unknown-IP
+hardware-learned client and live moves. A repeated run reusing those test MACs did
+not establish the expected fresh associations within its test window; cached prior
+port associations were retained. A full rerun with fresh, unique fixture MACs/IPs
+passed initial attachment, movement, unavailable/empty FDB and VLAN 20/30 checks.
+No cached client purge was used. This confirms the existing controller cache caveat
+also matters when repeatedly forgetting/recreating test switches with reused clients.
+No immediate offline timing or rapid reassociation guarantee is claimed.
+
+Automated result with Docker opt-in: **188 passed, 1 skipped** (opt-in real-controller
+pytest). Checks cover FDB authority vs ARP/DHCP-only rows, MAC movement/expiry/gaps,
+unicast/global/local MACs, unknown/conflicting IP, bound/active DHCP identity and
+server scope, VLAN-aware/unaware bridges, VID ranges/current membership, invalid
+hostnames, down/disabled ports, optional permission/stream failures, packet age,
+same GCM identity/key, and bounded response rejection. Both API/TLS container cases
+verified actual emitted client MAC/IP data and unknown IP/VID omission as UID 10001.
+Ruff lint/format and the Docker build passed; dependencies/lockfile were unchanged.
+The same final image passed the existing synthetic Docker smoke check, including
+GCM identity/key persistence, M1 clients/LLDP, read-only mounts and health.
+Browser rendering and actual-hardware M3 client behavior remain unverified.
+
 ## RouterOS connection diagnostics — 2026-10-16
 
 The user reported generic `RouterOS connection-failed` during the local probe.

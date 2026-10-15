@@ -1,6 +1,6 @@
 # Current limitations and milestone gate
 
-This revision implements experimental M0/M1 synthetic telemetry and M2 read-only
+This revision implements experimental M0/M1 synthetic telemetry and M2/M3 read-only
 RouterOS API collection. A successful hardware probe is user-confirmed; detailed
 hardware telemetry/UI validation remains pending.
 The M0 success criterion is an actually adopted switch remaining Connected in a real
@@ -15,11 +15,16 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
 - Three synthetic wired clients and LLDP were accepted by 10.6.106. Removed clients
   and rapid reverse port moves can retain cached associations; immediate offline/
   reassociation and exact aging time are not guaranteed. No controller-side purge is used.
-- No real FDB/client correlation, LLDP/MNDP collection, VLAN configuration or hardware
-  health sensors. M2 reads device CPU/memory and physical ports through the native API.
+- Read-only FDB clients and scoped IPv4 ARP/DHCP enrichment are implemented. No
+  LLDP/MNDP collection, VLAN configuration or hardware health sensors are implemented.
+- FDB bond/unmapped/conflicting/static-only entries are not guessed into live physical
+  clients. Unknown IP/VID is not fabricated; one MAC/VID in multiple bridges is ambiguous.
+- M3 still needs actual-hardware client validation. UniFi can cache removed clients
+  and merge one MAC across VLANs; exact offline/reassociation behavior is not guaranteed.
 - RouterOS 7.24+ (7.x stable) is version-gated. The user confirmed a successful
   RB760iGS 7.24.4 probe after correcting API allowed source IPs. Detailed API values,
-  optional warnings, counter accuracy and actual-hardware UniFi display remain unreviewed.
+  port activity/statistics in UniFi are user-confirmed. Detailed counters, optional
+  warnings and M3 physical-hardware client behavior remain unreviewed.
 - Required RouterOS API failure suppresses inform telemetry and may make the emulator
   appear offline. Optional unknown values are omitted and can retain cached UI values.
 - API-SSL verifies trust and hostname. The requested API/8728 mode sends credentials

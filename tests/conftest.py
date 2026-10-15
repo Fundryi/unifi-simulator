@@ -58,6 +58,7 @@ class RouterOSPeer:
         self.uptime = "1d2h3m4s"
         self.rx = 9007199254740993
         self.ca = None
+        self.monitors = {}
 
     def tables(self):
         physical = [f"ether{i}" for i in range(1, 6)] + ["sfp1"]
@@ -108,6 +109,65 @@ class RouterOSPeer:
             "/interface/bridge/port/print": [
                 {"interface": "ether2", "bridge": "bridge-lan", "hw": "yes", "pvid": "20"}
             ],
+            "/interface/bridge/print": [
+                {
+                    "name": "bridge-lan",
+                    "vlan-filtering": "false",
+                    "pvid": "1",
+                    "mac-address": "DC:2C:6E:00:00:01",
+                    "ageing-time": "5m",
+                }
+            ],
+            "/interface/bridge/vlan/print": [],
+            "/interface/bridge/host/print": [
+                {
+                    "mac-address": "00:11:22:33:44:55",
+                    "on-interface": "ether2",
+                    "bridge": "bridge-lan",
+                    "dynamic": "true",
+                    "local": "false",
+                },
+                {
+                    "mac-address": "02:AB:00:00:00:02",
+                    "on-interface": "ether2",
+                    "bridge": "bridge-lan",
+                    "dynamic": "false",
+                    "external": "true",
+                },
+                {
+                    "mac-address": "DC:2C:6E:00:00:01",
+                    "on-interface": "bridge-lan",
+                    "bridge": "bridge-lan",
+                    "local": "true",
+                },
+                {
+                    "mac-address": "DC:2C:6E:00:00:02",
+                    "on-interface": "ether2",
+                    "bridge": "bridge-lan",
+                    "dynamic": "true",
+                    "local": "false",
+                },
+            ],
+            "/ip/arp/print": [
+                {
+                    "address": "192.0.2.50",
+                    "mac-address": "00:11:22:33:44:55",
+                    "interface": "bridge-lan",
+                    "status": "reachable",
+                }
+            ],
+            "/ip/dhcp-server/lease/print": [
+                {
+                    "address": "192.0.2.50",
+                    "mac-address": "00:11:22:33:44:55",
+                    "status": "bound",
+                    "server": "lan",
+                    "host-name": "fixture-client",
+                }
+            ],
+            "/ip/dhcp-server/print": [
+                {"name": "lan", "interface": "bridge-lan", "disabled": "false"}
+            ],
         }
 
     async def handle(self, reader, writer):
@@ -150,6 +210,7 @@ class RouterOSPeer:
                                 "auto-negotiation": "done",
                             }
                         ]
+                        rows = self.monitors.get(interface_id, rows)
                     else:
                         assert command in self.tables(), "Unexpected or mutating command"
                         rows = self.tables()[command]

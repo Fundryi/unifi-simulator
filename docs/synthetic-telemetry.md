@@ -124,4 +124,5 @@ are not guaranteed. No controller-side delete/purge commands are used to hide th
 The browser UI, traffic charts and topology graph have **not** been inspected here.
 Check Ports, Client Devices and Topology manually. An unknown LLDP MAC does not guarantee
 a managed UniFi graph node. Client VLAN metadata does not configure VLAN membership,
-a gateway or DHCP. RouterOS collection and real topology remain later milestones.
+a gateway or DHCP. RouterOS collection and FDB clients are available in
+[M2/M3](wired-clients.md) as a separate source; real topology remains M4.

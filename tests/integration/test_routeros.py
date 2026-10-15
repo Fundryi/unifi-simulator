@@ -56,10 +56,10 @@ async def test_actual_api_wire_normalization_and_encrypted_inform(routeros_peer,
     assert not p3["up"] and p3["speed"] == 0
     assert not p5["enable"] and not p6["up"]
     assert not p7["enable"] and not p8["enable"] and "rx_bytes" not in p7
-    assert "lldp_table" not in body and all("mac_table" not in p for p in body["port_table"])
+    assert "lldp_table" not in body and len(p2["mac_table"]) == 2
     assert body["mac"] == app.state.mac and not body["mac"].startswith("dc:2c:6e")
     report = store.load_telemetry()
-    assert report["source"] == "routeros" and report["active_clients"] is None
+    assert report["source"] == "routeros" and report["active_clients"] == 2
     observation = report["observations"]
     assert len(observation["ports"]) == 6 and len(observation["logical_interfaces"]) == 3
     vlan = next(i for i in observation["logical_interfaces"] if i["kind"] == "vlan")
@@ -307,7 +307,7 @@ async def test_unavailable_or_old_routeros_data_makes_health_fail(
     assert main() == 0
     report = json.loads(capsys.readouterr().out)
     assert report["discovered_ports"] == 6 and report["synthetic_ports"] == 0
-    assert report["wired_clients"] is None and report["routeros"] == "unavailable"
+    assert report["wired_clients"] == 2 and report["routeros"] == "unavailable"
     # Switching source must not label the persisted M1 demo as live MikroTik observations.
     store.save_telemetry({"source": "synthetic", "status": "active", "active_clients": 3})
     assert main() == 0

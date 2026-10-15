@@ -8,6 +8,9 @@ That remains the default synthetic mode. To use the RB760iGS at 192.168.0.249:87
 follow [M2 read-only RouterOS setup](../../docs/routeros.md) and merge
 `compose.routeros.yml` into the simulator project. It preserves the existing adoption
 volume and uses a local password secret, without adding the simulator to the database network.
+That RouterOS override now also enables [M3 wired clients](../../docs/wired-clients.md)
+from FDB with optional ARP/DHCP enrichment. Rebuild/recreate the emulator with the same
+files and identity; no additional write permissions or re-adoption are needed.
 
 ```mermaid
 flowchart LR

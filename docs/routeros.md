@@ -1,10 +1,12 @@
-# Milestone 2: read-only RouterOS API collection
+# Milestones 2/3: read-only RouterOS API collection
 
 This collector targets stable **RouterOS 7.24+ (7.x)**. It reads physical Ethernet/SFP
 ports, link state/speed/duplex, absolute RX/TX byte counters, uptime, CPU and memory.
 Bridge/VLAN/bond inventory and bridge membership are retained as diagnostic context.
-They are never counted as extra physical ports. FDB/ARP/DHCP client correlation and
-neighbor/topology collection remain milestones 3/4; M2 emits no synthetic clients.
+They are never counted as extra physical ports. Milestone 3 adds observed FDB clients
+with scoped ARP/DHCP enrichment and VLAN context; see [wired clients](wired-clients.md)
+for upgrade instructions, aging and ambiguity handling. No synthetic clients are added
+in RouterOS mode. Neighbor/topology collection remains milestone 4.
 
 The requested deployment is **RB760iGS, 192.168.0.249:8728, RouterOS 7.24.4**, using
 the native API without TLS. The lab override explicitly selects that transport.
@@ -38,6 +40,10 @@ The only wire commands allowed by the client are:
 | `/interface/bridge/port/print` | Optional bridge membership, PVID, offload flags |
 | `/interface/vlan/print` | Optional VLAN interface parent/ID |
 | `/interface/bonding/print` | Optional bond membership |
+| `/interface/bridge/print`, `/interface/bridge/vlan/print` | Bridge/VLAN context and local MACs |
+| `/interface/bridge/host/print` | Learned MAC/VID/port attachment |
+| `/ip/arp/print` | Optional scoped IPv4 enrichment |
+| `/ip/dhcp-server/lease/print`, `/ip/dhcp-server/print` | Optional bound lease/name enrichment and server scope |
 
 No arbitrary command string is configurable. Read requests use bounded `.proplist`
 fields; interface comments, credentials, scripts, exports and raw config are not fetched.
@@ -168,7 +174,7 @@ Set the existing controller/state/IP variables before `mtunifi run`. The offline
   Faster-than-gigabit observations are preserved with a profile warning; no UI support
   for those rates is claimed.
 - `diagnose` reports source, freshness, normalized observations and warnings. Client
-  count is `null` (not collected), rather than an invented zero. `health` also requires
+  count now reflects emitted FDB clients, or `null` when FDB is unavailable. `health` also requires
   a recent successful RouterOS snapshot and valid inform; it never probes the router.
 
 ## Diagnosing connection failures
@@ -244,5 +250,6 @@ These use host networking only for loopback wire fixtures, temporary test state
 volumes, mounted fixture secrets, UID 10001 and a read-only root filesystem.
 The cloud connection to `192.168.0.249:8728` was refused and no RouterOS credentials
 were available there. The user subsequently confirmed a successful local probe on
-RB760iGS / 7.24.4 after correcting the API source-IP restriction. Detailed observation
-values, optional warnings and UniFi display of actual hardware telemetry remain unreviewed.
+RB760iGS / 7.24.4 after correcting the API source-IP restriction and later confirmed
+live port activity/statistics in UniFi. Detailed counter accuracy, optional warnings
+and M3 hardware client correlation remain unreviewed.

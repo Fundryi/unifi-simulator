@@ -9,8 +9,10 @@ from typing import Literal
 
 from pydantic import Field, ValidationError, field_validator, model_validator
 
+from mtunifi.clients import ClientTracker, correlate_clients
 from mtunifi.config import Settings
 from mtunifi.routeros_api import RouterOSAPI, RouterOSError, Table, api_error, api_target
+from mtunifi.routeros_values import boolean, number, text, uptime_seconds
 from mtunifi.scenario import LabModel
 from mtunifi.snapshot import (
     BridgeMember,
@@ -59,44 +61,6 @@ def load_mapping(path: Path) -> RouterOSMap:
         raise RouterOSError("port-map-invalid") from None
 
 
-def text(value: str | None, limit: int = 128) -> str | None:
-    if value and len(value) <= limit and all(32 <= ord(c) != 127 for c in value):
-        return value
-    return None
-
-
-def boolean(value: str | None) -> bool | None:
-    return {"true": True, "yes": True, "false": False, "no": False}.get(value)
-
-
-def number(value: str | None, maximum: int = 2**64 - 1) -> int | None:
-    if value is not None and re.fullmatch(r"[0-9]{1,20}", value):
-        parsed = int(value)
-        if parsed <= maximum:
-            return parsed
-    return None
-
-
-def uptime_seconds(value: str | None) -> int:
-    if value:
-        match = re.fullmatch(
-            r"(?:(\d{1,8})w)?(?:(\d{1,8})d)?(?:(\d{1,8})h)?"
-            r"(?:(\d{1,8})m)?(?:(\d{1,8})s)?",
-            value,
-        )
-        if match and any(part is not None for part in match.groups()):
-            return sum(
-                int(n or 0) * unit
-                for n, unit in zip(match.groups(), (604800, 86400, 3600, 60, 1), strict=True)
-            )
-        match = re.fullmatch(r"(?:(\d{1,8})d)?(\d{1,2}):(\d{2}):(\d{2})", value)
-        if match:
-            days, hours, minutes, seconds = (int(n or 0) for n in match.groups())
-            if hours < 24 and minutes < 60 and seconds < 60:
-                return days * 86400 + hours * 3600 + minutes * 60 + seconds
-    raise RouterOSError("invalid-uptime")
-
-
 def link_speed(value: str | None) -> int | None:
     if not value:
         return None
@@ -126,7 +90,9 @@ def indexed(rows: list[dict]) -> dict[str, dict]:
     return result
 
 
-async def collect_device(api: RouterOSAPI, mapping: RouterOSMap) -> DeviceSnapshot:
+async def collect_device(
+    api: RouterOSAPI, mapping: RouterOSMap, device_mac: str = ""
+) -> DeviceSnapshot:
     resources = await api.table(Table.RESOURCE)
     if len(resources) != 1:
         raise RouterOSError("invalid-resource-table")
@@ -255,16 +221,38 @@ async def collect_device(api: RouterOSAPI, mapping: RouterOSMap) -> DeviceSnapsh
                             pvid=number(row.get("pvid"), 4094),
                             hardware_offload_requested=boolean(row.get("hw")),
                             hardware_offload_active=boolean(row.get("hw-offload")),
+                            enabled=(not boolean(row["disabled"]))
+                            if boolean(row.get("disabled")) is not None
+                            else None,
                         )
                     )
                 else:
                     warnings.append("bridge_ports:invalid-row")
-    return DeviceSnapshot(
+    snapshot = DeviceSnapshot(
         health,
         tuple(ports),
         tuple(logical),
         tuple(members) if members is not None else None,
         tuple(sorted(set(warnings))),
+    )
+    bridge_rows = await optional(Table.BRIDGES) if any(i.kind == "bridge" for i in logical) else []
+    vlan_rows = await optional(Table.BRIDGE_VLANS) if bridge_rows != [] else []
+    hosts = await optional(Table.BRIDGE_HOSTS)
+    arp = await optional(Table.ARP)
+    leases = await optional(Table.DHCP_LEASES)
+    servers = await optional(Table.DHCP_SERVERS) if leases else None
+    snapshot = replace(snapshot, warnings=tuple(sorted(set(warnings))))
+    return correlate_clients(
+        snapshot,
+        interfaces=interfaces,
+        bridge_rows=bridge_rows,
+        vlan_rows=vlan_rows,
+        hosts=hosts,
+        arp=arp,
+        leases=leases,
+        servers=servers,
+        device_mac=device_mac,
+        extra_local_macs=tuple(row.get("mac-address") for row in ethernet.values()),
     )
 
 
@@ -279,6 +267,8 @@ class RouterOSSource:
         self._observed_at: float | None = None
         self._failures = 0
         self._error: RouterOSError | None = None
+        self._clients = ClientTracker()
+        self._observed_mono = 0.0
 
     async def collect(self, now: float, device_mac: str) -> dict:
         if now >= self._next_poll:
@@ -288,7 +278,7 @@ class RouterOSSource:
                     # One bounded session per poll: failures reconnect without sharing credentials
                     # or a socket with another device. Secret rotations apply on the next poll.
                     async with api:
-                        snapshot = await collect_device(api, self.mapping)
+                        snapshot = await collect_device(api, self.mapping, device_mac)
                 previous = self._snapshot
                 reset = previous is not None and (
                     snapshot.health.uptime_seconds < previous.health.uptime_seconds
@@ -299,8 +289,11 @@ class RouterOSSource:
                 )
                 if reset:
                     snapshot = replace(snapshot, warnings=(*snapshot.warnings, "counters:reset"))
+                    self._clients.clear()
+                snapshot = self._clients.observe(snapshot, now)
                 self._snapshot = snapshot
                 self._observed_at = time.time()
+                self._observed_mono = now
                 self.status = "degraded" if snapshot.warnings else "active"
                 self._error, self._failures = None, 0
                 self._next_poll = now + self.settings.routeros_poll_interval
@@ -311,7 +304,14 @@ class RouterOSSource:
                     60, self.settings.routeros_poll_interval * 2 ** (self._failures - 1)
                 )
                 self.status = "unavailable"
+                self._clients.clear()
         snapshot = self._snapshot
+        body = (
+            unifi_snapshot(snapshot, age_seconds=max(0, int(now - self._observed_mono)))
+            if (snapshot is not None and self._error is None)
+            else None
+        )
+        clients = snapshot.wired.clients if snapshot and snapshot.wired else None
         self.last_summary = {
             "source": "routeros",
             "target": api_target(self.settings),
@@ -320,7 +320,13 @@ class RouterOSSource:
             "age_seconds": max(0, time.time() - self._observed_at)
             if self._observed_at is not None
             else None,
-            "active_clients": None,
+            "active_clients": sum(len(p.get("mac_table", [])) for p in body["port_table"])
+            if body is not None and clients is not None
+            else None,
+            "clients_status": "unavailable" if clients is None or body is None else "observed",
+            "unresolved_clients": sum(c.attachment != "physical" for c in clients)
+            if clients is not None and body is not None
+            else None,
             "neighbors": None,
             "mapped_physical_ports": len(self.mapping.ports),
             "source_error": self._error.code if self._error else None,
@@ -331,4 +337,4 @@ class RouterOSSource:
             # Retain the previous snapshot only for diagnosis, never send stale observations
             # as fresh telemetry or silently fall back to synthetic ports/clients.
             raise self._error
-        return unifi_snapshot(snapshot)
+        return body

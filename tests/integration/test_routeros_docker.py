@@ -106,9 +106,13 @@ async def test_rootless_container_routeros_source_and_gcm_restart(routeros_peer,
         report = json.loads(await docker(*args, image, "diagnose"))
         assert report["phase"] == "exchanging" and report["has_private_key"]
         assert report["discovered_ports"] == 6 and report["synthetic_ports"] == 0
-        assert report["wired_clients"] is None
+        assert report["wired_clients"] == 2
         assert packets[1].mode == "gcm" and packets[0].mac == packets[1].mac
         assert packets[1].body["port_table"][0]["rx_bytes"] == peer.rx + 1
+        wired = {c["mac"]: c for c in packets[1].body["port_table"][1]["mac_table"]}
+        assert wired["00:11:22:33:44:55"]["ip"] == "192.0.2.50"
+        assert "ip" not in wired["02:ab:00:00:00:02"]
+        assert "vlan" not in wired["02:ab:00:00:00:02"]
         await docker(*args, image, "health")
         assert (
             json.loads(await docker(*args, image, "probe-routeros"))["mapped_physical_ports"] == 6
