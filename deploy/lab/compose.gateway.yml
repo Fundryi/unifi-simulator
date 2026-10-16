@@ -1,0 +1,14 @@
+# Last override, after simulator + routeros (+ multidevice when CRS326 is present).
+# Reuses the RB target/API secret and lab IP, with a NEW gateway identity volume.
+services:
+  emulator:
+    environment:
+      MTUNIFI_PROFILE: ugw3-experimental
+      MTUNIFI_HOSTNAME: ${MTUNIFI_GATEWAY_HOSTNAME:-mtunifi-rb760-ugw3}
+      MTUNIFI_ROUTEROS_WAN_INTERFACE: ${MTUNIFI_ROUTEROS_WAN_INTERFACE:-ether1}
+      MTUNIFI_ROUTEROS_MAP_FILE: ""
+    volumes:
+      - rb760-gateway-state:/state
+
+volumes:
+  rb760-gateway-state:

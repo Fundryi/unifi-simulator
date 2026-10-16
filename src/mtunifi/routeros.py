@@ -1,7 +1,6 @@
 """Read-only RouterOS collector with explicit physical-port mapping and reconnects."""
 
 import asyncio
-import re
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -11,14 +10,27 @@ from pydantic import Field, ValidationError, field_validator, model_validator
 
 from mtunifi.clients import ClientTracker, correlate_clients
 from mtunifi.config import Settings
+from mtunifi.gateway import collect_gateway, gateway_snapshot
 from mtunifi.neighbors import collect_neighbors
 from mtunifi.profiles import profile
 from mtunifi.routeros_api import RouterOSAPI, RouterOSError, Table, api_error, api_target
-from mtunifi.routeros_values import boolean, number, text, uptime_seconds
+from mtunifi.routeros_values import (
+    boolean,
+    indexed,
+    link_speed,
+    number,
+    resource_health,
+    text,
+)
+from mtunifi.routeros_values import (
+    check_version as check_version,
+)
+from mtunifi.routeros_values import (
+    uptime_seconds as uptime_seconds,
+)
 from mtunifi.scenario import LabModel
 from mtunifi.snapshot import (
     BridgeMember,
-    DeviceHealth,
     DeviceSnapshot,
     LogicalInterface,
     PhysicalPort,
@@ -66,35 +78,6 @@ def load_mapping(path: Path) -> RouterOSMap:
         raise RouterOSError("port-map-invalid") from None
 
 
-def link_speed(value: str | None) -> int | None:
-    if not value:
-        return None
-    match = re.fullmatch(r"([0-9]{1,3}(?:\.[0-9]{1,3})?)([GM])bps", value)
-    if match:
-        rate = float(match[1]) * (1000 if match[2] == "G" else 1)
-        if rate.is_integer() and 0 < rate <= 800_000:
-            return int(rate)
-    return None
-
-
-def check_version(version: str | None) -> str:
-    if version:
-        match = re.fullmatch(r"7\.(\d{1,3})(?:\.\d{1,3})?(?: \([^\r\n]{1,32}\))?", version)
-        if match and int(match[1]) >= 24:
-            return version
-    raise RouterOSError("requires-routeros-7.24-or-newer")
-
-
-def indexed(rows: list[dict]) -> dict[str, dict]:
-    result = {}
-    for row in rows:
-        name = text(row.get("name"))
-        if name is None or name in result:
-            raise RouterOSError("invalid-interface-table")
-        result[name] = row
-    return result
-
-
 async def collect_device(
     api: RouterOSAPI, mapping: RouterOSMap, device_mac: str = ""
 ) -> DeviceSnapshot:
@@ -102,11 +85,9 @@ async def collect_device(
     if len(resources) != 1:
         raise RouterOSError("invalid-resource-table")
     resource = resources[0]
-    version = check_version(resource.get("version"))
-    uptime = uptime_seconds(resource.get("uptime"))
+    health, warnings = resource_health(resource)
     interfaces = indexed(await api.table(Table.INTERFACES))
     ethernet = indexed(await api.table(Table.ETHERNET))
-    warnings = []
 
     async def optional(table):
         try:
@@ -119,21 +100,8 @@ async def collect_device(
             return None
 
     identity = await optional(Table.IDENTITY)
-    total, free = number(resource.get("total-memory")), number(resource.get("free-memory"))
-    if total is None or total == 0 or free is None or free > total:
-        total, free = None, None
-        warnings.append("memory:unavailable")
-    cpu = number(resource.get("cpu-load"), 100)
-    if cpu is None:
-        warnings.append("cpu:unavailable")
-    health = DeviceHealth(
-        version=version,
-        uptime_seconds=uptime,
-        identity=text(identity[0].get("name")) if identity and len(identity) == 1 else None,
-        cpu_percent=cpu,
-        memory_total_bytes=total,
-        memory_free_bytes=free,
-        board=text(resource.get("board-name")),
+    health = replace(
+        health, identity=text(identity[0].get("name")) if identity and len(identity) == 1 else None
     )
     ports = []
     for item in sorted(mapping.ports, key=lambda p: p.port_idx):
@@ -275,8 +243,9 @@ async def collect_device(
 class RouterOSSource:
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.mapping = load_mapping(settings.routeros_map_file)
-        if self.mapping.profile != settings.profile:
+        self.gateway = profile(settings.profile).kind == "gateway"
+        self.mapping = None if self.gateway else load_mapping(settings.routeros_map_file)
+        if self.mapping is not None and self.mapping.profile != settings.profile:
             raise RouterOSError("port-map-profile-mismatch")
         self.status = "unavailable"
         self.last_summary = None
@@ -296,13 +265,25 @@ class RouterOSSource:
                     # One bounded session per poll: failures reconnect without sharing credentials
                     # or a socket with another device. Secret rotations apply on the next poll.
                     async with api:
-                        snapshot = await collect_device(api, self.mapping, device_mac)
+                        snapshot = (
+                            await collect_gateway(api, self.settings)
+                            if self.gateway
+                            else await collect_device(api, self.mapping, device_mac)
+                        )
                 previous = self._snapshot
                 reset = previous is not None and (
                     snapshot.health.uptime_seconds < previous.health.uptime_seconds
                     or any(
                         p.rx_bytes < old.rx_bytes or p.tx_bytes < old.tx_bytes
                         for p, old in zip(snapshot.ports, previous.ports, strict=True)
+                    )
+                    or (
+                        snapshot.wan is not None
+                        and previous.wan is not None
+                        and (
+                            snapshot.wan.rx_bytes < previous.wan.rx_bytes
+                            or snapshot.wan.tx_bytes < previous.wan.tx_bytes
+                        )
                     )
                 )
                 if reset:
@@ -324,15 +305,17 @@ class RouterOSSource:
                 self.status = "unavailable"
                 self._clients.clear()
         snapshot = self._snapshot
-        body = (
-            unifi_snapshot(
-                snapshot,
-                age_seconds=max(0, int(now - self._observed_mono)),
-                port_count=profile(self.settings.profile).port_count,
+        body = None
+        if snapshot is not None and self._error is None:
+            body = (
+                gateway_snapshot(snapshot, device_mac)
+                if self.gateway
+                else unifi_snapshot(
+                    snapshot,
+                    age_seconds=max(0, int(now - self._observed_mono)),
+                    port_count=profile(self.settings.profile).port_count,
+                )
             )
-            if (snapshot is not None and self._error is None)
-            else None
-        )
         clients = snapshot.wired.clients if snapshot and snapshot.wired else None
         self.last_summary = {
             "source": "routeros",
@@ -360,7 +343,8 @@ class RouterOSSource:
             and snapshot.neighbors
             and snapshot.neighbors.observations is not None
             else None,
-            "mapped_physical_ports": len(self.mapping.ports),
+            "mapped_physical_ports": len(self.mapping.ports) if self.mapping else 0,
+            "wan_interface": self.settings.routeros_wan_interface if self.gateway else None,
             "source_error": self._error.code if self._error else None,
             "source_error_details": self._error.public() if self._error else None,
             "observations": snapshot.public() if snapshot else None,

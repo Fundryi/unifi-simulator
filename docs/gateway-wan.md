@@ -1,59 +1,126 @@
-# RB760iGS as a gateway: WAN feasibility and proposed next profile
+# RB760iGS as UGW3: read-only WAN telemetry
 
-**A USG profile is a viable next step for WAN visibility.** A separate laboratory
-experiment on UniFi Network 10.6.106 adopted a fresh synthetic `UGW3` / UniFi Security
-Gateway, reached Connected with a newly issued private key and GCM, and produced
-nonzero `wan1.rx_bytes-r` / `wan1.tx_bytes-r` values from increasing fixture counters.
-This is stronger evidence than merely changing a model string. The observed device
-API classified it as `type=ugw` and exposed WAN byte counters, IP and link speed.
-It was then deleted through the supported API; no database writes were used.
+The opt-in `ugw3-experimental` profile presents a **UniFi Security Gateway / UGW3**
+and reads WAN observations from RouterOS 7.24+. The default WAN interface is
+**`ether1`**, including the requested RB760iGS at **192.168.0.249:8728**. It reuses
+the existing read-only API account and password secret. Nothing is written to RouterOS.
 
-The experiment used synthetic counters and test-net addresses, not the RB's WAN.
-The browser traffic graph, long-term history and actual RouterOS WAN collection were
-not validated. It is a feasibility experiment, **not an available production profile**.
-M5 intentionally keeps the user's already-adopted RB as US8 and adds the CRS as a
-separate Switch Pro 24. No existing switch was forgotten or reclassified.
+This is a different controller device class. The gateway override uses a **new
+state volume, synthetic MAC and adoption key**; the old US8 volume stays intact.
+The CRS326 remains a separate Switch Pro 24 with its existing identity and clients.
 
-## Recommendation
+## Switch the existing M5 lab
 
-Implement a separate opt-in `UGW3` gateway adapter rather than turning a US8 into a
-router by changing its name. It is the candidate already demonstrated with our
-outbound adoption protocol. Other UXG/UDM-class models were not tested; their model
-names alone do not establish compatibility with an external Network controller.
+Run `git pull` in the existing checkout. Then, from `deploy/lab`, use these commands
+(single lines also work in Windows PowerShell):
 
-The gateway profile needs a distinct telemetry contract:
+```sh
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.gateway.yml up -d --build --no-deps --force-recreate emulator
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.gateway.yml logs -f emulator
+```
 
-- Explicit WAN interface selection: physical Ethernet, PPPoE or VLAN, as actually
-  configured on the RB. Read its own counters; do not sum an encapsulated interface
-  and its physical parent, which would double-count traffic.
-- RX on WAN means downloaded bytes; TX means uploaded bytes. Keep large integer
-  counters, actual uptime, reset detection and unknown/down state. Controller-side
-  rates must be tested over multiple informs and after counter/device resets.
-- Device-side `config_port_table` associates logical interface names with WAN/LAN
-  roles. `if_table` carries interface counters/link state; `uplink` identifies WAN.
-  The controller consumed these into `wan1` in the experiment. The switch's
-  `port_table.mac_table` is not a gateway/WAN schema.
-- Add bounded read-only IP-address observations for the selected interface if WAN
-  IP/prefix display is required. Missing/denied data must remain unknown. Do not
-  assume the RB provides DHCP, has a public address, or uses an untagged Ethernet WAN.
-- Keep controller provisioning metadata read-only. Do not apply its gateway
-  firewall/NAT/DHCP/VLAN configuration to RouterOS, claim internet connectivity from
-  link-up alone, invent latency/speed-test/DPI results or run controller commands.
+Only `emulator` is recreated. Controller, MongoDB and `emulator-crs326` keep running.
+The last override, [compose.gateway.yml](../deploy/lab/compose.gateway.yml), replaces
+the RB's `/state` mount with `rb760-gateway-state`. The previous `simulator-state`
+volume is retained. No password, port-map edit or adoption reset is needed.
 
-The exact RB WAN interface is still required before collecting real WAN data.
-A gateway represents the routed role, not all six RB physical ports as a USG's three
-ports. The CRS can retain detailed switching/clients, while a future RB gateway
-adapter reports WAN and explicitly mapped LAN observations.
+In UniFi Devices, adopt the new **`mtunifi-rb760-ugw3`** gateway. Confirm Connected
+and WAN traffic across several informs. UniFi allows one gateway per site; an
+already-adopted gateway must be handled before adopting this one. The previous US8
+record can remain offline until verification; removing it is an operator decision, never an automatic action.
 
-## Migration contract
+```sh
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.gateway.yml exec emulator mtunifi diagnose
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.gateway.yml exec emulator mtunifi probe-routeros
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.gateway.yml exec emulator mtunifi health
+```
 
-A gateway is a different controller device class. Use a **new synthetic identity and
-state volume**, keep the existing US8 volume intact for rollback, stop its old
-emulator, and adopt the gateway in the isolated lab. Do not reuse a switch's private
-key or import physical MikroTik MACs. Removing the old UI device is an explicit
-operator action after deciding to migrate; M5 does not perform it automatically.
+Diagnostics should report `selected_profile=ugw3-experimental`, `model=UGW3`,
+`wan_interface=ether1` and actual WAN counters in `wan`. Zero mapped physical switch
+ports and unknown client/neighbor counts are expected for this WAN-only profile.
+`health` checks source/inform freshness, not controller adoption. `exec` probes the
+running service without creating another container competing for its fixed lab IP.
 
-Proposed acceptance checks: real read-only RB counters at the selected WAN, gateway
-Connected under a new key, correct RX/TX direction and computed WAN rates, interface
-loss/recovery/reset, restart persistence, and browser/history display. The initial
-lab experiment has established adoption and controller-computed rates only.
+Keep **all four files in this order** for subsequent gateway recreations. Without
+the gateway override Compose selects the original US8 profile and volume again.
+If there is no CRS service, omit `compose.multidevice.yml` from these commands.
+Never use `down -v` as part of this migration.
+
+## Choose the WAN interface
+
+No `.env` change is needed for `ether1`. To make the selection explicit, or to use
+another current RouterOS name, add these non-secret values to the **existing**
+`deploy/lab/.env`, preserving all its other settings:
+
+```dotenv
+MTUNIFI_ROUTEROS_WAN_INTERFACE=ether1
+# Optional synthetic controller hostname:
+MTUNIFI_GATEWAY_HOSTNAME=mtunifi-rb760-ugw3
+```
+
+Recreate `emulator` with the same four-file command after changing the selection.
+The selected interface may be Ethernet, PPPoE or VLAN, for example `pppoe-out1` or
+`vlan-wan`. Its **own** counters are read; the collector does not sum parent and
+encapsulated interface traffic. A missing/renamed interface fails explicitly.
+Changing WAN selection keeps the gateway's MAC/key. It does not reclassify an US8.
+
+Outside this Compose lab, select `MTUNIFI_PROFILE=ugw3-experimental`,
+`MTUNIFI_TELEMETRY_SOURCE=routeros`, `MTUNIFI_ROUTEROS_WAN_INTERFACE=ether1`, the usual
+RouterOS credentials/transport and a **fresh** `MTUNIFI_STATE_DIR`. A switch map is
+not required. Inventory settings use the same fields without the `MTUNIFI_` prefix;
+each device still needs its own state directory and synthetic identity.
+
+## Observation contract
+
+- `/interface/print` supplies selected-interface flags and absolute RX/TX bytes.
+  **WAN RX = downloaded bytes, WAN TX = uploaded bytes.** Counters remain integers;
+  UniFi computes rates between informs. Actual RouterOS uptime is reported and a
+  counter/uptime decrease produces a reset warning without clearing adoption.
+  UniFi may omit rates on the first reset sample and calculate them on a later inform.
+- Physical Ethernet optionally uses `/interface/ethernet/print` and `monitor once`
+  for link speed/duplex. PPPoE/VLAN do not inherit an invented parent speed or duplex.
+  Down/disabled links retain observed counters; unknown details are omitted.
+- Optional `/ip/address/print` supplies a scoped IPv4 address and prefix. It prefers
+  `actual-interface` scope; disabled/invalid addresses are excluded. Denied, malformed
+  or multiple distinct candidates do not produce a guessed primary address. No
+  prefix, public address, default route or internet connectivity is assumed.
+- Gateway informs map the selected RouterOS interface to the UGW3 logical WAN
+  alias **`eth0`** in `config_port_table`, `if_table` and `uplink`. UniFi 10.6.106
+  accepts arbitrary names as uplinks but requires this model alias for `wan1`.
+  Diagnostics retain the actual source name, such as `ether1` or `pppoe-out1`.
+  They do not send switch `port_table`/LLDP or claim the RB's six
+  physical ports are a USG's three. Interface MAC is the synthetic gateway identity.
+- Uptime/CPU/memory use the existing read-only resource collector. Gateway mode
+  does not query switch FDB, ARP, DHCP leases or neighbor cache. LAN clients/ports,
+  routing, NAT/firewall/DHCP configuration, DPI, latency, speed tests and WAN health
+  probes are outside this profile. CRS326 retains its switch/client observations.
+- Optional permission/endpoint failures degrade diagnostics while valid WAN
+  counters continue. A broken API stream or missing/malformed required WAN data
+  prevents that inform; no stale or synthetic replacement is sent. Keys are retained.
+  UniFi may retain earlier values when optional fields disappear.
+
+The existing `read,api` account is sufficient for the allowed commands; no new
+write permission is needed. API/8728 remains the user's explicit plaintext LAN
+transport. API-SSL continues to verify certificates without fallback.
+
+## Return to US8
+
+Recreate only the RB service using the original three M5 files:
+
+```sh
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml up -d --no-deps --force-recreate emulator
+```
+
+This mounts the retained `simulator-state` and selects US8 again. If its controller
+record was not deleted, its previous adoption can resume. If you forgot it in UniFi,
+follow [explicit re-adoption](adoption.md#re-adopt-a-device-deleted-from-the-controller)
+with these three files. The gateway volume remains available for another switch
+back. Do not copy keys between volumes or bypass the profile guard.
+
+## Validation
+
+See [executed validation](validation.md) for automated native API/container checks
+and UniFi 10.6.106 observations. RouterOS observations in the cloud come from
+independent API fixtures. Actual RB WAN traffic, browser graphs and long-term
+history still need verification on the user's deployment. The earlier M5 synthetic
+feasibility experiment is retained in that report as historical evidence.

@@ -208,4 +208,6 @@ wire-field evidence for `config_port_table` (ifname/name/type), `uplink` and `if
 facts reached Connected as `UGW3` and produced nonzero controller `wan1` RX/TX rates.
 No upstream implementation was copied and no physical WAN state was read. Switch
 port tables alone do not establish WAN telemetry support. See [gateway assessment](gateway-wan.md)
-and [executed validation](validation.md) for the limits; no gateway adapter is shipped in M5.
+and [executed validation](validation.md) for the original experiment limits.
+A subsequent opt-in UGW3 adapter now collects a configurable RouterOS WAN interface;
+see [gateway deployment](gateway-wan.md) for its separate identity and telemetry contract.

@@ -34,7 +34,12 @@ per-slot capacity; changing a model does not happen by guessing from a target ad
 excludes local MACs and tracks continuous observations without persisting client history.
 `neighbors.py` normalizes RouterOS neighbor-cache evidence, preserves protocol/port
 uncertainty and exports only eligible LLDP observations. It never creates inferred
-switches from FDB entries. `routeros_values.py` shares bounded API value parsers.
+switches from FDB entries. `routeros_values.py` shares bounded API value parsers
+and resource health normalization. `gateway.py` collects the explicitly selected
+WAN interface, optional link details/scoped IPv4, and maps them to the UGW3
+`config_port_table`/`if_table` contract. Gateway mode needs no switch port map and
+does not collect FDB/ARP/DHCP/neighbor tables or apply routing configuration.
+See `gateway-wan.md` for its new-identity migration and retained US8 rollback volume.
 
 `transport.py` resolves the controller's IPv4 address for the device-side JSON inform_url.
 UniFi 10.6.106 rejects a DNS hostname in that field during adoption. The actual HTTP URL,

@@ -1,9 +1,55 @@
 # Executed validation — latest 2026-10-16
 
+## UGW3 profile and selected RouterOS WAN — 2026-10-16
+
+Following the user's successful M5 deployment, the RB760iGS can opt into
+`ugw3-experimental` with `MTUNIFI_ROUTEROS_WAN_INTERFACE=ether1` by default.
+The gateway Compose override reuses the RB API target/account/secret but mounts a
+new identity volume. Three-file rollback still selects the retained US8 volume;
+the CRS profile, address and state mount are unchanged. Four-file configuration
+merges passed for both `ether1` and `pppoe-out1`.
+
+Final automated result with Docker opt-in: **242 passed, 1 skipped** (the separate
+real-controller pytest opt-in). Eight new unit/native API cases cover TCP and
+verified TLS, CBC-to-GCM exchange, scoped/denied/ambiguous IPv4, exact large counters,
+selected Ethernet/PPPoE/VLAN counters without parent summing, link loss/recovery,
+uptime/counter reset and failed API streams without fabricated telemetry or key loss.
+The additional UID-10001/read-only-container case verifies UGW3 production-image
+telemetry, optional IPv4, health/probe and persisted GCM identity across recreation.
+Existing US8 and CRS326 container cases passed. Ruff lint/format, Docker build and
+synthetic Docker smoke passed; dependencies and lockfile were unchanged.
+
+The production image also ran against the actual isolated UniFi **10.6.106**
+controller with independent native API peers, alongside the unchanged CRS326 profile.
+UGW3 reached Connected under a new key/GCM and the CRS retained 26 ports. A sample
+`wan1` exposed RX=5,375,000 / TX=1,075,000 bytes, derived rates about 161,917 / 32,383
+bytes/s, IP 198.51.100.2 and speed 1000 Mb/s. These are fixture observations and
+controller sampling, not hardware throughput calibration. Denying `/ip/address/print`
+produced an unknown source IP/degraded diagnostics while counters and health continued.
+Recreating with WAN selection `ether2` retained the gateway MAC/key and changed the
+controller WAN IP to 203.0.113.9. After resetting fixture uptime/counters, the first
+fresh controller sample omitted derived rates; a subsequent sample reported
+RX=1,216,020 bytes, about 63,791 RX / 7,974 TX bytes/s and Connected with the same
+identity. CRS health remained successful. An initial harness used a fixed 800,000-byte
+threshold, which expired before the next positive-rate sample; the corrected check
+compares the counter/uptime decrease against the actual pre-reset observation.
+It does not require a rate on the reset sample itself.
+
+An initial production-adapter run reached Connected but arbitrary RouterOS interface
+names populated only `uplink`, leaving `wan1` absent. The final adapter therefore
+exports the UGW3 logical WAN alias `eth0` while retaining the selected source name in
+diagnostics. WAN acceptance above was rerun with that final mapping. Early lab API
+attempts also exposed an unfinished setup wizard and inconsistent cached site state;
+the disposable lab setup was completed through the supported API before the final run.
+No controller database writes or production device state changes were used.
+
+Actual RB WAN traffic, browser graphs and long-term history are not established by
+API fixtures. Deployment and rollback are in [gateway setup](gateway-wan.md).
+
 ## Milestone 5: independent devices and CRS326 profile — 2026-10-16
 
 The user reported the M4 deployment working before requesting M5, with a second
-CRS326 target at 192.168.0.251. The cloud TCP attempt to 192.168.0.251:8728 was
+CRS326 target at 192.168.0.251, and subsequently confirmed M5 deployed and working. The cloud TCP attempt to 192.168.0.251:8728 was
 refused; no physical CRS credentials/readings were available. RouterOS data below
 comes from independent native API peers, not the actual CRS. The existing user RB
 adoption volume/controller was never modified by these experiments.

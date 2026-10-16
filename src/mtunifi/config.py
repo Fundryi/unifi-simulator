@@ -32,6 +32,14 @@ class Settings(BaseModel):
     routeros_map_file: Path | None = None
     routeros_timeout: float = Field(default=10, ge=1, le=120)
     routeros_poll_interval: float = Field(default=10, ge=5, le=300)
+    routeros_wan_interface: str = Field(default="ether1", min_length=1, max_length=128)
+
+    @field_validator("routeros_wan_interface")
+    @classmethod
+    def interface_name(cls, value):
+        if any(ord(c) < 32 or ord(c) == 127 for c in value):
+            raise ValueError("Control characters are not allowed")
+        return value
 
     @field_validator(
         "synthetic_file",
@@ -80,10 +88,11 @@ class Settings(BaseModel):
                     self.routeros_host,
                     self.routeros_user,
                     self.routeros_password_file,
-                    self.routeros_map_file,
                 )
             ):
-                raise ValueError("RouterOS host, user, password file and port map are required")
+                raise ValueError("RouterOS host, user and password file are required")
+            if profile(self.profile).kind == "switch" and self.routeros_map_file is None:
+                raise ValueError("Switch collection requires a port map")
             if self.synthetic_file is not None:
                 raise ValueError("Select either a synthetic scenario or RouterOS collection")
         return self

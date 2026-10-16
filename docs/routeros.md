@@ -8,6 +8,8 @@ with scoped ARP/DHCP enrichment and VLAN context; see [wired clients](wired-clie
 for upgrade instructions, aging and ambiguity handling. No synthetic clients are added
 in RouterOS mode. Milestone 4 adds [observed neighbors and topology provenance](topology.md).
 Milestone 5 adds [independent CRS326 collection, a 26-port profile and inventory CLI](multi-device.md).
+The optional [UGW3 gateway profile](gateway-wan.md) reads a selected WAN interface
+(default `ether1`) with a separate adoption identity instead of a switch port map.
 
 The requested deployment is **RB760iGS, 192.168.0.249:8728, RouterOS 7.24.4**, using
 the native API without TLS. The lab override explicitly selects that transport.
@@ -45,6 +47,7 @@ The only wire commands allowed by the client are:
 | `/interface/bridge/print`, `/interface/bridge/vlan/print` | Bridge/VLAN context and local MACs |
 | `/interface/bridge/host/print` | Learned MAC/VID/port attachment |
 | `/ip/arp/print` | Optional scoped IPv4 enrichment |
+| `/ip/address/print` | Optional selected-interface IPv4/prefix, gateway mode only |
 | `/ip/dhcp-server/lease/print`, `/ip/dhcp-server/print` | Optional bound lease/name enrichment and server scope |
 
 No arbitrary command string is configurable. Read requests use bounded `.proplist`
@@ -256,4 +259,5 @@ RB760iGS / 7.24.4 after correcting the API source-IP restriction and later confi
 live port activity/statistics in UniFi. Detailed counter accuracy and optional warnings
 remain unreviewed. M3 client visibility on that hardware is now user-confirmed;
 M4 deployment success is now user-reported; exact neighbor values/browser topology
-and M5 CRS hardware collection remain unverified.
+remain unverified. M5 deployment was subsequently confirmed working by the user;
+the new gateway WAN profile still needs local hardware validation.

@@ -8,8 +8,10 @@ provenance and independent multi-device supervision for milestones 2–5. Adopti
 through an isolated UniFi Network 10.6.106 controller API.
 The user confirmed live port activity, correct statistics and visible wired clients
 from RB760iGS / RouterOS 7.24.4 in UniFi, and subsequently confirmed the M4 deployment
-working. M5 adds a separate CRS326 target (192.168.0.251), a 26-port Switch Pro 24
-profile and inventory CLI. Actual CRS hardware and browser topology remain unverified.
+working, followed by a successful M5 deployment. M5 adds a separate CRS326 target
+(192.168.0.251), a 26-port Switch Pro 24 profile and inventory CLI. An opt-in
+UGW3 profile now exposes the RB WAN; actual gateway hardware and browser topology
+remain to be verified.
 
 | Capability | Status |
 | --- | --- |
@@ -25,7 +27,8 @@ profile and inventory CLI. Actual CRS hardware and browser topology remain unver
 | Observed FDB clients, VLAN scope, optional ARP/DHCP IP/name, aging | Implemented; wire fixtures and 10.6.106 controller API tested |
 | RouterOS neighbor evidence and conservative LLDP topology export | Implemented; protocol/port uncertainty retained in diagnostics; 10.6.106 API tested |
 | Independent devices, inventory CLI and separate CRS326 Compose service | Implemented; isolated processes/state/keys, eight- and 26-slot profiles |
-| VLAN configuration, gateway production adapter | Not implemented; [USG/WAN feasibility](docs/gateway-wan.md) demonstrated in isolated lab |
+| UGW3 gateway, configurable read-only WAN interface (default ether1) | [Gateway deployment](docs/gateway-wan.md); separate identity and WAN observations |
+| VLAN / router configuration | Unsupported |
 | Applying controller configuration to MikroTik | Unsupported by design |
 
 ## Development quick start
@@ -57,9 +60,9 @@ For real wired clients, VLAN scoping, unknown IP, moves and aging, see
 enables M3 and [M4 observed neighbors](docs/topology.md) after rebuilding, preserving
 adoption and read-only credentials.
 For the second CRS326 target, independent secrets/state and upgrade instructions,
-see [M5 multi-device setup](docs/multi-device.md). The RB stays US8; a separate
-[USG/WAN assessment](docs/gateway-wan.md) records successful gateway adoption and
-controller-computed WAN rates with synthetic data.
+see [M5 multi-device setup](docs/multi-device.md). The RB defaults to US8. To switch
+it to UGW3 with configurable WAN collection and a new adoption volume, follow
+[RB gateway/WAN setup](docs/gateway-wan.md).
 The lab Compose now selects the demo scenario by default and preserves adoption state.
 If you deleted the device in UniFi and now see GCM `exchanging` with HTTP 400,
 follow [re-adoption without changing MAC](docs/adoption.md#re-adopt-a-device-deleted-from-the-controller).
@@ -129,8 +132,8 @@ backups. Optional protocol tracing logs metadata only. Never reuse real device i
 or keys, modify production controller databases, or capture traffic without authorization.
 The 10.6.106 result covers the synthetic UniFi profile. A successful actual MikroTik
 API probe, live port activity/statistics and M3 wired clients are user-confirmed.
-M4 deployment success is user-reported. Detailed counters, M5 CRS hardware and
-other controller releases remain unverified.
+M4 and M5 deployment success are user-reported. Gateway hardware WAN collection,
+detailed counter calibration and other controller releases remain unverified.
 
 ## Milestones
 
@@ -142,6 +145,6 @@ other controller releases remain unverified.
 5. Add independent multi-device orchestration.
 
 Milestones 0–5 have native fixtures and real controller API observations. The user
-confirmed M2 ports/statistics, M3 clients and M4 deployment on the RB. M5 CRS
+confirmed M2 ports/statistics, M3 clients and M4/M5 deployment. Gateway WAN
 hardware behavior and browser topology rendering still require local validation.
 License: MIT. Upstream protocol research and licensing notes are recorded in the research document.

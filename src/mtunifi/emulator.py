@@ -7,6 +7,7 @@ import httpx
 from pydantic import SecretStr
 
 from mtunifi.config import Settings
+from mtunifi.profiles import profile
 from mtunifi.protocol import BOOTSTRAP_KEY, MAX_PAYLOAD, ProtocolError, decode, encode
 from mtunifi.routeros_api import RouterOSError, api_target
 from mtunifi.scenario import ScenarioError
@@ -132,7 +133,10 @@ class Emulator:
             )
             event(
                 "telemetry_generated",
-                ports=len(body["port_table"]),
+                ports=len(body.get("port_table", [])),
+                wan_interface=self.settings.routeros_wan_interface
+                if profile(self.settings.profile).kind == "gateway"
+                else None,
                 source=self.settings.telemetry_source,
                 clients=self.source.last_summary["active_clients"],
                 neighbors=len(body["lldp_table"]) if "lldp_table" in body else None,

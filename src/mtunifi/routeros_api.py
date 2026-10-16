@@ -38,6 +38,8 @@ class RouterOSError(ValueError):
             "timeout": "Check reachability, API response time and the collection timeout budget",
             "authentication-failed": "Check the read-only API account and local password file",
             "password-file-invalid": "Check the mounted password file and UID 10001 read access",
+            "wan-interface-missing": "Check the configured WAN interface name on RouterOS",
+            "required-wan-data-missing": "Check WAN link flags and absolute interface counters",
         }
         return {
             "reason": str(self),
@@ -101,6 +103,7 @@ class Table(StrEnum):
     DHCP_LEASES = "/ip/dhcp-server/lease/print"
     DHCP_SERVERS = "/ip/dhcp-server/print"
     NEIGHBORS = "/ip/neighbor/print"
+    IP_ADDRESSES = "/ip/address/print"
 
 
 PROPERTIES = {
@@ -127,6 +130,7 @@ PROPERTIES = {
     Table.NEIGHBORS: (
         "interface,mac-address,identity,interface-name,discovered-by,age,system-description"
     ),
+    Table.IP_ADDRESSES: "address,interface,actual-interface,disabled,invalid,dynamic",
 }
 MONITOR = "/interface/ethernet/monitor"
 

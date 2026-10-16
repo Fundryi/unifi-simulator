@@ -156,4 +156,4 @@ that rejects unknown fields.
 LLDP retains reported neighbor MACs; M5 does not rewrite real neighbor identities to
 another emulator's random MAC. Controller topology-node merging/browser rendering
 is separate from observed links. See [validation](validation.md) for executed results,
-[neighbor rules](topology.md), and [the RB gateway/WAN assessment](gateway-wan.md).
+[neighbor rules](topology.md), and [the optional RB UGW3 gateway/WAN deployment](gateway-wan.md).

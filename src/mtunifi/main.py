@@ -138,6 +138,10 @@ def main() -> int:
                         "controller": settings.inform_url,
                         "selected_profile": settings.profile,
                         "model": profile(settings.profile).model,
+                        "wan_interface": settings.routeros_wan_interface
+                        if profile(settings.profile).kind == "gateway"
+                        else None,
+                        "wan": observations.get("wan") if observations else None,
                         "last_inform_age_seconds": age,
                         "routeros": routeros_status,
                         "telemetry_source": settings.telemetry_source,

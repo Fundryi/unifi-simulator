@@ -170,6 +170,15 @@ class RouterOSPeer:
                 {"name": "lan", "interface": "bridge-lan", "disabled": "false"}
             ],
             "/ip/neighbor/print": [],
+            "/ip/address/print": [
+                {
+                    "address": "198.51.100.2/24",
+                    "interface": "ether1",
+                    "actual-interface": "ether1",
+                    "disabled": "false",
+                    "invalid": "false",
+                },
+            ],
         }
 
     async def handle(self, reader, writer):

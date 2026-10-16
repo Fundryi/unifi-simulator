@@ -2,8 +2,8 @@
 
 This revision implements experimental M0/M1 synthetic telemetry and M2–M5 read-only
 RouterOS API collection. Hardware probe, live port activity/statistics and M3 client
-visibility and M4 deployment are user-confirmed. M5 CRS hardware readings and
-browser topology rendering remain pending.
+visibility and M4/M5 deployment are user-confirmed. Gateway WAN hardware
+validation and browser topology rendering remain pending.
 The M0 success criterion is an actually adopted switch remaining Connected in a real
 test UniFi controller; codec tests and a synthetic HTTP peer cannot satisfy that criterion.
 See `validation.md` for the real 10.6.106 controller API result. Manual UI inspection
@@ -15,11 +15,14 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
   two 10 Gb SFP+ slots) for CRS326. Synthetic scenarios remain eight-slot US8 only.
   Unmapped slots are disabled; bridges/bonds/VLANs are inventory, not extra physical ports.
 - Inventory supervision supports up to 32 independent child processes. Separate Compose
-  containers are the default lab deployment. Real CRS326 version/port names/readings
-  need local verification; the cloud API connection was refused.
-- USG adoption and WAN rates were demonstrated with synthetic lab data only. There
-  is no implemented gateway/WAN RouterOS adapter or automatic US8-to-gateway migration.
-  See `gateway-wan.md` for the proposed profile and explicit WAN selection requirements.
+  containers are the default lab deployment. CRS326 collection was exercised through
+  fixtures in the cloud; M5 deployment is now user-confirmed.
+- The opt-in UGW3 profile reads one selected WAN interface (default ether1), with
+  absolute RX/TX, link and optional scoped IPv4 observations. It uses a new state
+  volume/adoption; existing US8 identities cannot be reclassified. No gateway LAN
+  ports/clients, routing/NAT/DHCP configuration, DPI or internet-health probes are
+  implemented. See `gateway-wan.md` for deployment and rollback. Real RB WAN traffic
+  and browser/history display still require local validation.
 - Three synthetic wired clients and LLDP were accepted by 10.6.106. Removed clients
   and rapid reverse port moves can retain cached associations; immediate offline/
   reassociation and exact aging time are not guaranteed. No controller-side purge is used.
@@ -34,7 +37,7 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
 - RouterOS 7.24+ (7.x stable) is version-gated. The user confirmed a successful
   RB760iGS 7.24.4 probe after correcting API allowed source IPs. Live
   port activity/statistics in UniFi are user-confirmed. Detailed counters, optional
-  warnings, M4 exact neighbor values and M5 CRS hardware remain unreviewed.
+  warnings and M4 exact neighbor values remain unreviewed; M5 deployment is user-confirmed.
 - Required RouterOS API failure suppresses inform telemetry and may make the emulator
   appear offline. Optional unknown values are omitted and can retain cached UI values.
 - API-SSL verifies trust and hostname. The requested API/8728 mode sends credentials
@@ -59,7 +62,7 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
 - Adoption/Connected is observed for the synthetic profile with 10.6.106 only;
   no compatibility claim for 8.0.24 or other controller versions. User-reported
   RouterOS hardware validation covers ports/statistics, M3 clients and reported M4
-  deployment success. M5 hardware and gateway WAN collection remain unverified.
+  and M5 deployment success. Gateway WAN hardware collection remains unverified.
 - This profile advertises a resolved IPv4 inform endpoint; IPv6-only controllers
   are unsupported. DNS transport names remain supported with normal TLS verification.
 - Controller image v8.0.24 is old, third-party software, intended only for an isolated

@@ -1,16 +1,17 @@
-"""Explicit switch profiles; a device's class is never inferred from its address."""
+"""Explicit device profiles; a device's class is never inferred from its address."""
 
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class SwitchProfile:
+class DeviceProfile:
     name: str
     model: str
     display: str
     version: str
     required_version: str
     max_speeds: tuple[int, ...]
+    kind: str = "switch"
 
     @property
     def port_count(self) -> int:
@@ -18,10 +19,10 @@ class SwitchProfile:
 
 
 PROFILES = {
-    "us8-experimental": SwitchProfile(
+    "us8-experimental": DeviceProfile(
         "us8-experimental", "US8", "UniFi Switch 8", "4.3.28.11361", "5.4.0", (1000,) * 8
     ),
-    "usw-pro24-experimental": SwitchProfile(
+    "usw-pro24-experimental": DeviceProfile(
         "usw-pro24-experimental",
         "US24PRO2",
         "UniFi Switch Pro 24",
@@ -29,10 +30,19 @@ PROFILES = {
         "5.13.10",
         (1000,) * 24 + (10000,) * 2,
     ),
+    "ugw3-experimental": DeviceProfile(
+        "ugw3-experimental",
+        "UGW3",
+        "UniFi Security Gateway",
+        "4.4.57.5578372",
+        "5.4.0",
+        (),
+        "gateway",
+    ),
 }
 
 
-def profile(name: str) -> SwitchProfile:
+def profile(name: str) -> DeviceProfile:
     try:
         return PROFILES[name]
     except KeyError:

@@ -119,6 +119,23 @@ class NeighborInventory:
 
 
 @dataclass(frozen=True)
+class WANObservation:
+    interface: str
+    interface_kind: str | None
+    enabled: bool
+    up: bool
+    rx_bytes: int
+    tx_bytes: int
+    speed_mbps: int | None = None
+    full_duplex: bool | None = None
+    ip: str | None = None
+    netmask: str | None = None
+    ipv4_candidates: tuple[str, ...] = ()
+    address_status: str = "unavailable"
+    evidence: str = "/interface/print"
+
+
+@dataclass(frozen=True)
 class DeviceSnapshot:
     health: DeviceHealth
     ports: tuple[PhysicalPort, ...]
@@ -129,6 +146,7 @@ class DeviceSnapshot:
     bridge_vlans: tuple[BridgeVLAN, ...] | None = None
     wired: ClientInventory | None = None
     neighbors: NeighborInventory | None = None
+    wan: WANObservation | None = None
 
     def public(self) -> dict:
         return asdict(self)
