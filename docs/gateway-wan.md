@@ -9,7 +9,11 @@ This is a different controller device class. The gateway override uses a **new
 state volume, synthetic MAC and adoption key**; the old US8 volume stays intact.
 The CRS326 remains a separate Switch Pro 24 with its existing identity and clients.
 
-## Switch the existing M5 lab
+The original `compose.gateway.yml` **replaces the US8 service with WAN-only UGW3**.
+It does not preserve switch/client telemetry inside the gateway. To keep both views
+of the RB, use [simultaneous US8 + UGW3](#run-us8-and-ugw3-together) instead.
+
+## Run UGW3 in place of US8
 
 Run `git pull` in the existing checkout. Then, from `deploy/lab`, use these commands
 (single lines also work in Windows PowerShell):
@@ -46,6 +50,67 @@ the gateway override Compose selects the original US8 profile and volume again.
 If there is no CRS service, omit `compose.multidevice.yml` from these commands.
 Never use `down -v` as part of this migration.
 
+## Run US8 and UGW3 together
+
+Use [compose.rb760-dual.yml](../deploy/lab/compose.rb760-dual.yml) **instead of**
+`compose.gateway.yml`, last after the original three M5 files. Do not merge both
+role overrides. The dual override leaves the original `emulator` service intact
+and adds `emulator-gateway`:
+
+| Service | Profile / role | Default lab IP | State volume |
+| --- | --- | --- | --- |
+| `emulator` | US8, RB ports/clients/neighbors | 172.30.88.10 | original `simulator-state` |
+| `emulator-gateway` | UGW3, selected RB WAN | 172.30.88.12 | existing `rb760-gateway-state` |
+| `emulator-crs326` | Switch Pro 24, CRS ports/clients | 172.30.88.11 | existing `crs326-state` |
+
+Both RB collectors use `192.168.0.249`, the same dedicated read-only account/secret
+and separate API sessions. The gateway selection still defaults to `ether1`.
+The two RB views have different synthetic MACs/keys; they are two logical devices
+representing one physical router. Do not add their interface counters together when
+calculating total network usage. No physical link/topology between these two logical
+identities is invented. The inventory CLI's duplicate-target guard is unchanged;
+this dual-role deployment uses separate Compose services.
+
+**Existing single gateway migration, with US8 already deleted in UniFi:** run the
+following from `deploy/lab` (single lines work in Windows PowerShell). Stop the old
+`emulator` before moving its gateway volume to `emulator-gateway`:
+
+```sh
+git pull
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.rb760-dual.yml stop emulator
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.rb760-dual.yml build emulator emulator-gateway
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.rb760-dual.yml run --rm --no-deps emulator reset-adoption
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.rb760-dual.yml up -d --no-deps --force-recreate emulator emulator-gateway
+```
+
+The reset selects the retained **US8** identity and clears only its obsolete key;
+its MAC and target stay unchanged. Adopt that US8 in UniFi again. The UGW3 uses its
+existing gateway volume/MAC/key and hostname `mtunifi-rb760-ugw3` at the new lab IP;
+an already-adopted gateway normally needs no reset or re-adoption. If that UGW3 was
+also deleted, reset **`emulator-gateway`** separately after stopping that service,
+using the same complete file list. CRS stays running throughout.
+
+If US8 is still adopted, **omit the reset command**. If this is a fresh deployment
+with no US8 identity, also omit reset and adopt both new RB views after starting.
+Do not reset an undeleted device or delete/copy volumes. If the RouterOS API host
+was changed in `.env`, restore the host originally bound to each identity first.
+
+For custom lab subnets, choose a distinct `MTUNIFI_GATEWAY_IP` in that subnet; the
+default is `172.30.88.12`. Keep the existing `UNIFI_SIMULATOR_IP` and `MTUNIFI_CRS326_IP`
+settings for the other two services. All three addresses must be distinct.
+
+Inspect either role by selecting its service, always with the dual file list:
+
+```sh
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.rb760-dual.yml exec emulator mtunifi diagnose
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.rb760-dual.yml exec emulator-gateway mtunifi diagnose
+```
+
+All future build/up/reset commands for this deployment must keep
+`compose.rb760-dual.yml` last. A single-file synthetic startup cannot use the
+RouterOS-bound US8 volume and fails safely with the binding error described in
+[readoption](adoption.md#re-adopt-a-device-deleted-from-the-controller).
+
 ## Choose the WAN interface
 
 No `.env` change is needed for `ether1`. To make the selection explicit, or to use
@@ -58,7 +123,14 @@ MTUNIFI_ROUTEROS_WAN_INTERFACE=ether1
 MTUNIFI_GATEWAY_HOSTNAME=mtunifi-rb760-ugw3
 ```
 
-Recreate `emulator` with the same four-file command after changing the selection.
+After changing the selection, recreate the gateway service with its full file list:
+`emulator` with `compose.gateway.yml` in the single-gateway deployment, or
+`emulator-gateway` with `compose.rb760-dual.yml` in the dual deployment. For example:
+
+```sh
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml -f compose.rb760-dual.yml up -d --no-deps --force-recreate emulator-gateway
+```
+
 The selected interface may be Ethernet, PPPoE or VLAN, for example `pppoe-out1` or
 `vlan-wan`. Its **own** counters are read; the collector does not sum parent and
 encapsulated interface traffic. A missing/renamed interface fails explicitly.
@@ -105,11 +177,15 @@ transport. API-SSL continues to verify certificates without fallback.
 
 ## Return to US8
 
-Recreate only the RB service using the original three M5 files:
+For the **single-gateway** deployment, recreate only the RB service using the
+original three M5 files:
 
 ```sh
 docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml up -d --no-deps --force-recreate emulator
 ```
+
+In the dual deployment, US8 already runs: stop `emulator-gateway` with the full
+dual file list if WAN collection is no longer wanted, before omitting that override.
 
 This mounts the retained `simulator-state` and selects US8 again. If its controller
 record was not deleted, its previous adoption can resume. If you forgot it in UniFi,

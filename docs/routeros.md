@@ -119,7 +119,10 @@ The advertised UniFi device IP remains the emulator's address, not the MikroTik 
 UniFi model/firmware fields still use the experimental US8 profile; the actual
 RouterOS version and board name are retained in normalized diagnostics.
 
-To return to M1, recreate using only `compose.simulator.yml`; the same identity is retained.
+With the M5 identity guard, a state already bound to a RouterOS target cannot be
+started in synthetic mode using only `compose.simulator.yml`. Keep the RouterOS
+override for that identity. An independent M1 demo needs separate synthetic
+state/project and an unused lab IP; see [binding/readoption diagnosis](adoption.md#re-adopt-a-device-deleted-from-the-controller).
 
 ## Optional verified API-SSL
 

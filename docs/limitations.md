@@ -19,7 +19,9 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
   fixtures in the cloud; M5 deployment is now user-confirmed.
 - The opt-in UGW3 profile reads one selected WAN interface (default ether1), with
   absolute RX/TX, link and optional scoped IPv4 observations. It uses a new state
-  volume/adoption; existing US8 identities cannot be reclassified. No gateway LAN
+  volume/adoption; existing US8 identities cannot be reclassified. The dual-role
+  Compose override keeps US8 switch/client collection alongside a separate UGW3
+  service; both read the same RB API with distinct identities, volumes and lab IPs. No gateway LAN
   ports/clients, routing/NAT/DHCP configuration, DPI or internet-health probes are
   implemented. See `gateway-wan.md` for deployment and rollback. Real RB WAN traffic
   and browser/history display still require local validation.

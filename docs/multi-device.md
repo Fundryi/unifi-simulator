@@ -157,3 +157,11 @@ LLDP retains reported neighbor MACs; M5 does not rewrite real neighbor identitie
 another emulator's random MAC. Controller topology-node merging/browser rendering
 is separate from observed links. See [validation](validation.md) for executed results,
 [neighbor rules](topology.md), and [the optional RB UGW3 gateway/WAN deployment](gateway-wan.md).
+
+## Two views of the RB: US8 plus UGW3
+
+To retain RB switch/client telemetry alongside the UGW3 WAN, add
+`compose.rb760-dual.yml` as the fourth file instead of `compose.gateway.yml`.
+See [dual-role migration](gateway-wan.md#run-us8-and-ugw3-together) for service/IP/volume
+assignments and readoption of a deleted US8. This does not change the CRS service
+or relax inventory endpoint/identity guards.

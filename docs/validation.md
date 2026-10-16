@@ -1,5 +1,44 @@
 # Executed validation — latest 2026-10-16
 
+## Simultaneous RB US8 + UGW3 and readoption fix — 2026-10-16
+
+The user reported deleting the original US8 and hitting
+`StateBindingError: RouterOS target differs from persisted identity` during
+readoption/startup. The generic readoption example used only the synthetic Compose
+file. It now distinguishes RouterOS and synthetic file lists; binding failures give
+a concrete hint to restore the complete overrides/source/target/profile for that
+volume. The guard is retained: no target/key/profile is silently reassigned.
+
+The new `compose.rb760-dual.yml`, used instead of `compose.gateway.yml`, keeps
+`emulator` as US8 in `simulator-state` and adds `emulator-gateway` using the existing
+`rb760-gateway-state`. It gives the gateway its own IP (default 172.30.88.12), reuses
+the RB read-only API secret and leaves CRS326 unchanged. Configuration merges passed
+for default `ether1` and custom `pppoe-out1`, checking three distinct state mounts
+and advertised/network IPs, profiles, source/target and shared RB secret.
+
+Automated result: **240 passed, 5 skipped** (the existing Docker/real-controller
+opt-ins). The new regression checks reproduce reset/start with a missing RouterOS
+override, verify unchanged state files, then restore the source/target and reset
+only US8 credentials while preserving its MAC/binding and the gateway file. Ruff
+lint/format and the production image build passed. Dependencies/lockfile are unchanged.
+
+A separate **actual Compose** run used the production image in an isolated bridge,
+three disposable state volumes, independent native RouterOS API fixtures and an
+encrypted HTTP controller peer. It first ran US8 + CRS, switched the RB service to
+the single UGW3 override, then stopped it and migrated to the dual-role override.
+After simulating deletion of only US8, the documented reset targeted its original
+volume. Both RB services plus CRS then ran simultaneously: US8 retained its MAC and
+received a new key; UGW3 retained its MAC/key at the new gateway IP; CRS continued
+informs with its original key. All three used distinct keys/IPs/volumes, sent GCM
+and passed health/diagnose. US8/CRS retained 8/26 port tables and UGW3 emitted WAN
+interface telemetry. Only fixture endpoints, images and secrets were overridden;
+the shipped services, networks and state mounts were used. Own test containers,
+network and volumes were removed afterwards; permanent lab volumes were retained.
+
+This run did not contact physical MikroTik equipment or repeat actual UniFi/browser
+validation. Earlier UniFi 10.6.106 acceptance of the same wire profiles is below.
+See [dual-role migration](gateway-wan.md#run-us8-and-ugw3-together).
+
 ## UGW3 profile and selected RouterOS WAN — 2026-10-16
 
 Following the user's successful M5 deployment, the RB760iGS can opt into

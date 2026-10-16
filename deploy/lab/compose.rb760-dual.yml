@@ -1,0 +1,35 @@
+# Merge LAST after simulator + routeros (+ multidevice for CRS326).
+# Use INSTEAD OF compose.gateway.yml: emulator stays US8 with simulator-state.
+# The gateway reuses the previous gateway override's volume, hostname and identity.
+services:
+  emulator-gateway:
+    extends:
+      file: compose.simulator.yml
+      service: emulator
+    environment:
+      MTUNIFI_INFORM_URL: http://unifi-network-application:8080/inform
+      MTUNIFI_DEVICE_IP: ${MTUNIFI_GATEWAY_IP:-172.30.88.12}
+      MTUNIFI_HOSTNAME: ${MTUNIFI_GATEWAY_HOSTNAME:-mtunifi-rb760-ugw3}
+      MTUNIFI_PROFILE: ugw3-experimental
+      MTUNIFI_TELEMETRY_SOURCE: routeros
+      MTUNIFI_SYNTHETIC_FILE: ""
+      MTUNIFI_ROUTEROS_HOST: ${MTUNIFI_ROUTEROS_HOST:-192.168.0.249}
+      MTUNIFI_ROUTEROS_PORT: ${MTUNIFI_ROUTEROS_PORT:-8728}
+      MTUNIFI_ROUTEROS_TLS: ${MTUNIFI_ROUTEROS_TLS:-false}
+      MTUNIFI_ROUTEROS_USER: ${MTUNIFI_ROUTEROS_USER:?Set the dedicated read-only API username}
+      MTUNIFI_ROUTEROS_PASSWORD_FILE: /run/secrets/routeros_password
+      MTUNIFI_ROUTEROS_CA_FILE: ${MTUNIFI_ROUTEROS_CA_FILE:-}
+      MTUNIFI_ROUTEROS_MAP_FILE: ""
+      MTUNIFI_ROUTEROS_WAN_INTERFACE: ${MTUNIFI_ROUTEROS_WAN_INTERFACE:-ether1}
+      MTUNIFI_ROUTEROS_POLL_INTERVAL: ${MTUNIFI_ROUTEROS_POLL_INTERVAL:-10}
+      MTUNIFI_ROUTEROS_TIMEOUT: ${MTUNIFI_ROUTEROS_TIMEOUT:-10}
+    networks:
+      lab:
+        ipv4_address: ${MTUNIFI_GATEWAY_IP:-172.30.88.12}
+    volumes:
+      - rb760-gateway-state:/state
+    secrets:
+      - routeros_password
+
+volumes:
+  rb760-gateway-state:

@@ -20,6 +20,9 @@ For the optional RB UGW3 gateway with configurable WAN (`ether1` by default), ad
 `compose.gateway.yml` last; see [gateway migration](../../docs/gateway-wan.md).
 This uses a fresh gateway identity/volume and requires adoption; the old US8 volume
 is retained for rollback and the CRS service keeps its existing configuration.
+To run RB switch/client and gateway/WAN telemetry together, use
+`compose.rb760-dual.yml` instead of `compose.gateway.yml`; follow the
+[dual-role migration and US8 readoption](../../docs/gateway-wan.md#run-us8-and-ugw3-together).
 
 ```mermaid
 flowchart LR

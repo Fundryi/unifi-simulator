@@ -40,6 +40,9 @@ WAN interface, optional link details/scoped IPv4, and maps them to the UGW3
 `config_port_table`/`if_table` contract. Gateway mode needs no switch port map and
 does not collect FDB/ARP/DHCP/neighbor tables or apply routing configuration.
 See `gateway-wan.md` for its new-identity migration and retained US8 rollback volume.
+The optional dual-role Compose override runs the original US8 and UGW3 collectors
+against the same read-only RB API in separate services; it preserves both state
+volumes, gives the gateway its own lab IP, and leaves CRS independent.
 
 `transport.py` resolves the controller's IPv4 address for the device-side JSON inform_url.
 UniFi 10.6.106 rejects a DNS hostname in that field during adoption. The actual HTTP URL,

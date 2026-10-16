@@ -1,6 +1,7 @@
 import json
 
 import httpx
+import pytest
 from pydantic import SecretStr
 
 from mtunifi.config import Settings
@@ -125,3 +126,46 @@ def test_reset_refuses_state_bound_to_another_controller(tmp_path, monkeypatch):
     monkeypatch.setattr("sys.argv", ["mtunifi", "reset-adoption"])
     assert main() == 2
     assert store.path.read_bytes() == before
+
+
+@pytest.mark.parametrize("command", ["reset-adoption", "run"])
+def test_missing_routeros_override_preserves_both_roles_and_correct_reset_only_resets_us8(
+    tmp_path, monkeypatch, capsys, command
+):
+    from mtunifi.main import main
+
+    stores = [Store(tmp_path / role) for role in ("us8", "gateway")]
+    for store, selected in zip(stores, ("us8-experimental", "ugw3-experimental"), strict=True):
+        with store.lock():
+            state = store.load_or_create()
+            state.bind(selected, "192.168.0.249")
+            state.controller_url = Settings().inform_url
+            state.authkey = SecretStr(KEY.hex())
+            state.phase, state.encryption = "exchanging", "gcm"
+            store.save(state)
+    switch, gateway = stores
+    switch_mac = switch.load().mac
+    original = switch.path.read_bytes()
+    gateway_original = gateway.path.read_bytes()
+    monkeypatch.setenv("MTUNIFI_STATE_DIR", str(switch.directory))
+    monkeypatch.setattr("sys.argv", ["mtunifi", command])
+    assert main() == 2  # Equivalent to accidentally using only the synthetic Compose file.
+    report = json.loads(capsys.readouterr().err)
+    assert report["category"] == "StateBindingError"
+    assert report["reason"] == "RouterOS target differs from persisted identity"
+    assert "Compose overrides" in report["hint"] and KEY.hex() not in json.dumps(report)
+    assert switch.path.read_bytes() == original and gateway.path.read_bytes() == gateway_original
+
+    # Restore the RouterOS settings used by this volume. Reset does not query the API.
+    monkeypatch.setenv("MTUNIFI_TELEMETRY_SOURCE", "routeros")
+    monkeypatch.setenv("MTUNIFI_ROUTEROS_HOST", "192.168.0.249")
+    monkeypatch.setenv("MTUNIFI_ROUTEROS_USER", "fixture-reader")
+    monkeypatch.setenv("MTUNIFI_ROUTEROS_PASSWORD_FILE", str(tmp_path / "not-read"))
+    monkeypatch.setenv("MTUNIFI_ROUTEROS_MAP_FILE", str(tmp_path / "not-read-map"))
+    monkeypatch.setattr("sys.argv", ["mtunifi", "reset-adoption"])
+    assert main() == 0
+    restored = switch.load()
+    assert restored.mac == switch_mac
+    assert restored.profile == "us8-experimental" and restored.routeros_host == "192.168.0.249"
+    assert restored.phase == "factory" and restored.authkey is None
+    assert gateway.path.read_bytes() == gateway_original

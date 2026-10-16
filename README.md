@@ -62,7 +62,9 @@ adoption and read-only credentials.
 For the second CRS326 target, independent secrets/state and upgrade instructions,
 see [M5 multi-device setup](docs/multi-device.md). The RB defaults to US8. To switch
 it to UGW3 with configurable WAN collection and a new adoption volume, follow
-[RB gateway/WAN setup](docs/gateway-wan.md).
+[RB gateway/WAN setup](docs/gateway-wan.md). To retain both RB switch/client
+telemetry and gateway WAN, use [simultaneous US8 + UGW3](docs/gateway-wan.md#run-us8-and-ugw3-together);
+its separate services reuse the two existing identity volumes.
 The lab Compose now selects the demo scenario by default and preserves adoption state.
 If you deleted the device in UniFi and now see GCM `exchanging` with HTTP 400,
 follow [re-adoption without changing MAC](docs/adoption.md#re-adopt-a-device-deleted-from-the-controller).

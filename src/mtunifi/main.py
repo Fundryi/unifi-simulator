@@ -189,7 +189,14 @@ def main() -> int:
         if isinstance(exc, RouterOSError):
             details = exc.public() | {"routeros_target": api_target(settings)}
         if isinstance(exc, StateBindingError):
-            details = {"reason": str(exc)}
+            details = {
+                "reason": str(exc),
+                "hint": (
+                    "Use the same Compose overrides, telemetry source, RouterOS host "
+                    "and profile as this state volume. reset-adoption preserves these bindings. "
+                    "See docs/adoption.md."
+                ),
+            }
         from mtunifi.fleet import InventoryError
 
         if isinstance(exc, InventoryError):

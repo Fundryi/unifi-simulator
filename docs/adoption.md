@@ -89,7 +89,33 @@ it can keep sending `exchanging` / GCM informs with that old key and receive HTT
 below: rebuilding an image deliberately preserves adoption state.
 
 After deliberately deleting the device in UniFi, reset only its local adoption
-metadata. For the two-project LinuxServer lab, start in the repository root:
+metadata. **Keep the same complete Compose file list for stop, reset and startup.**
+Using only `compose.simulator.yml` selects synthetic mode and the US8 volume. It
+cannot reset/start an identity bound to a RouterOS target: the correct response is
+`StateBindingError: RouterOS target differs from persisted identity`. This does not
+mean that the key, state permissions or physical router are broken. Restore the
+RouterOS override and original target; never edit `identity.json` to bypass binding.
+
+For simultaneous RB US8 + UGW3 (including recovery after deleting the original US8),
+use [the dual-role migration](gateway-wan.md#run-us8-and-ugw3-together). It resets
+only the old US8 volume and preserves the gateway's key.
+
+For **RouterOS US8 with the M5 CRS service**, from `deploy/lab`:
+
+```sh
+git pull
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml stop emulator
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml build emulator
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml run --rm --no-deps emulator reset-adoption
+docker compose -f compose.simulator.yml -f compose.routeros.yml -f compose.multidevice.yml up -d --no-deps --force-recreate emulator
+```
+
+Omit `compose.multidevice.yml` if there is no CRS. For the **single gateway** deployment,
+append `-f compose.gateway.yml` to the file list on **every** command: that selects
+its `rb760-gateway-state`, profile and RouterOS settings. Reset that gateway only if
+it was itself deleted in UniFi. Deleting US8 does not require resetting UGW3.
+
+For the **synthetic-only** two-project LinuxServer lab, start in the repository root:
 
 ```sh
 git pull
@@ -105,7 +131,8 @@ The reset preserves the MAC, controller URL binding, scenario and diagnostic
 snapshot. It clears the private key, cfgversion and adoption phase. Keep the existing
 `.env` and volume; do not use `down -v`. The command requires an existing identity
 and exclusive access: it refuses to reset state while an emulator holds its lock.
-For the root Compose file, use the same stop/build/run/up sequence without `-f`.
+For the root Compose file, use the same stop/build/run/up sequence without `-f`,
+retaining any RouterOS configuration/overrides used by that identity.
 
 With the default lab settings, the next request reports `phase=factory`,
 `encryption=cbc`, `default=true`, `has_private_key=false`. HTTP 404 can accompany
