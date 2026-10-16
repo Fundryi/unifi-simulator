@@ -1,11 +1,12 @@
-# RouterOS mapping — M2/M3 implementation and later work
+# RouterOS mapping — M2–M4 implementation and later work
 
 Synthetic adoption was demonstrated in M0/M1. M2 now implements read-only native
 RouterOS 7.24+ API collection and vendor-neutral normalization; M3 adds
-[FDB/ARP/DHCP client correlation](wired-clients.md). See [deployment](routeros.md).
+[FDB/ARP/DHCP client correlation](wired-clients.md); M4 adds
+[neighbor evidence and LLDP export](topology.md). See [deployment](routeros.md).
 No RouterOS writes exist. The user confirmed a successful RB760iGS 7.24.4 probe;
-live port activity/statistics in UniFi are also user-confirmed. Actual M3 hardware
-client correlation remains unverified.
+live port activity/statistics and M3 wired clients in UniFi are also user-confirmed.
+M4 hardware neighbor collection remains unverified.
 
 Use verified API-SSL or the user's explicitly requested LAN API on 8728 with a dedicated read-only account,
 restrict it to the collector source IP and grant only required read/API permissions.
@@ -21,7 +22,7 @@ Exact permissions and endpoint support must be verified on the target RouterOS b
 | TrafficCounters | interface stats | M2: absolute RX/TX bytes, device uptime, reset warning; no guessed rates |
 | VLAN | bridge/vlan and bridge/port | M3: compact VID ranges, configured/current tagged/untagged and dynamic membership, scoped enrichment |
 | WiredClient | bridge/host plus ARP and DHCP lease enrichment | M3: FDB physical-port authority; MAC+VLAN key, local/router MAC exclusion |
-| Neighbor | ip/neighbor (LLDP/MNDP) | M4: protocol provenance, local physical port, age and unknown remote port |
+| Neighbor | ip/neighbor (LLDP/MNDP/CDP) | M4: reported provenance/age; only unambiguous LLDP-only physical links exported; unknown ports retained diagnostically |
 
 An ARP or DHCP entry does not prove physical attachment. A missing IP does not make an
 FDB client offline. Age FDB entries based on observed expiry, not ARP absence. Several
@@ -36,5 +37,6 @@ M2 tests cover wire/TLS/API errors, permissions, physical/logical separation, co
 vs active hardware offload, VLAN parents, bonds, counters/resets and reconnect.
 M3 tests cover VLAN-aware FDB, duplicate MAC across VLANs/bridges, unknown/conflicting
 IP, moves/removal/reappearance, local MAC exclusion, external hardware learning,
-ambiguous bonds and optional-source failures. Neighbor observation/age and inferred
-topology remain M4.
+ambiguous bonds and optional-source failures. M4 tests cover neighbor protocols,
+unknown fields, ambiguous ports, aliases, age and optional failures. No inferred
+switches or direct links are created from FDB counts.

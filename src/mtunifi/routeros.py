@@ -11,6 +11,7 @@ from pydantic import Field, ValidationError, field_validator, model_validator
 
 from mtunifi.clients import ClientTracker, correlate_clients
 from mtunifi.config import Settings
+from mtunifi.neighbors import collect_neighbors
 from mtunifi.routeros_api import RouterOSAPI, RouterOSError, Table, api_error, api_target
 from mtunifi.routeros_values import boolean, number, text, uptime_seconds
 from mtunifi.scenario import LabModel
@@ -241,8 +242,9 @@ async def collect_device(
     arp = await optional(Table.ARP)
     leases = await optional(Table.DHCP_LEASES)
     servers = await optional(Table.DHCP_SERVERS) if leases else None
+    neighbors = await optional(Table.NEIGHBORS)
     snapshot = replace(snapshot, warnings=tuple(sorted(set(warnings))))
-    return correlate_clients(
+    snapshot = correlate_clients(
         snapshot,
         interfaces=interfaces,
         bridge_rows=bridge_rows,
@@ -253,6 +255,16 @@ async def collect_device(
         servers=servers,
         device_mac=device_mac,
         extra_local_macs=tuple(row.get("mac-address") for row in ethernet.values()),
+    )
+    return collect_neighbors(
+        snapshot,
+        neighbors,
+        local_macs=(
+            device_mac,
+            *(r.get("mac-address") for r in interfaces.values()),
+            *(r.get("mac-address") for r in ethernet.values()),
+            *(r.get(k) for r in bridge_rows or () for k in ("mac-address", "admin-mac")),
+        ),
     )
 
 
@@ -327,7 +339,17 @@ class RouterOSSource:
             "unresolved_clients": sum(c.attachment != "physical" for c in clients)
             if clients is not None and body is not None
             else None,
-            "neighbors": None,
+            "neighbors": len(body["lldp_table"])
+            if body is not None and "lldp_table" in body
+            else None,
+            "neighbors_status": "observed"
+            if body is not None and "lldp_table" in body
+            else "unavailable",
+            "neighbor_observations": len(snapshot.neighbors.observations)
+            if body is not None
+            and snapshot.neighbors
+            and snapshot.neighbors.observations is not None
+            else None,
             "mapped_physical_ports": len(self.mapping.ports),
             "source_error": self._error.code if self._error else None,
             "source_error_details": self._error.public() if self._error else None,

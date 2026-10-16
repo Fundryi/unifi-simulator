@@ -96,6 +96,29 @@ class ClientInventory:
 
 
 @dataclass(frozen=True)
+class NeighborObservation:
+    interfaces: tuple[str, ...]
+    protocols: tuple[str, ...]
+    mac: str | None
+    identity: str | None
+    remote_port: str | None
+    system_description: str | None
+    age_seconds: int | None
+    port_idx: int | None
+    export_reason: str
+    evidence: str = "routeros-neighbor-cache"
+    certainty: str = "reported"
+
+
+@dataclass(frozen=True)
+class NeighborInventory:
+    observations: tuple[NeighborObservation, ...] | None
+    source: str = "/ip/neighbor/print"
+    excluded_local: int = 0
+    invalid_rows: int = 0
+
+
+@dataclass(frozen=True)
 class DeviceSnapshot:
     health: DeviceHealth
     ports: tuple[PhysicalPort, ...]
@@ -105,6 +128,7 @@ class DeviceSnapshot:
     bridges: tuple[BridgeConfig, ...] | None = None
     bridge_vlans: tuple[BridgeVLAN, ...] | None = None
     wired: ClientInventory | None = None
+    neighbors: NeighborInventory | None = None
 
     def public(self) -> dict:
         return asdict(self)
@@ -170,5 +194,30 @@ def unifi_snapshot(snapshot: DeviceSnapshot, *, age_seconds: int = 0) -> dict:
     body = {"port_table": ports, "uptime": health.uptime_seconds}
     if stats:
         body["system-stats"] = stats
-    # Neighbor/topology collection remains separate. Unknown IP/VLAN is never fabricated.
+    neighbors = (
+        snapshot.neighbors.observations
+        if snapshot.neighbors is not None and snapshot.neighbors.invalid_rows == 0
+        else None
+    )
+    if neighbors is not None:
+        body["lldp_table"] = []
+        emitted = set()
+        for neighbor in neighbors:
+            if neighbor.export_reason != "eligible":
+                continue
+            port = by_slot.get(neighbor.port_idx)
+            identity = (neighbor.port_idx, neighbor.mac, neighbor.remote_port)
+            if port is None or not port.enabled or not port.up or identity in emitted:
+                continue
+            emitted.add(identity)
+            entry = {
+                "chassis_id": neighbor.mac,
+                "local_port_idx": port.port_idx,
+                "local_port_name": port.name,
+                "port_id": neighbor.remote_port,
+                "is_wired": True,
+            }
+            if neighbor.system_description or neighbor.identity:
+                entry["chassis_descr"] = neighbor.system_description or neighbor.identity
+            body["lldp_table"].append(entry)
     return body

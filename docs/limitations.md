@@ -1,8 +1,8 @@
 # Current limitations and milestone gate
 
-This revision implements experimental M0/M1 synthetic telemetry and M2/M3 read-only
-RouterOS API collection. A successful hardware probe is user-confirmed; detailed
-hardware telemetry/UI validation remains pending.
+This revision implements experimental M0/M1 synthetic telemetry and M2–M4 read-only
+RouterOS API collection. Hardware probe, live port activity/statistics and M3 client
+visibility are user-confirmed; M4 hardware neighbors and browser topology remain pending.
 The M0 success criterion is an actually adopted switch remaining Connected in a real
 test UniFi controller; codec tests and a synthetic HTTP peer cannot satisfy that criterion.
 See `validation.md` for the real 10.6.106 controller API result. Manual UI inspection
@@ -15,16 +15,18 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
 - Three synthetic wired clients and LLDP were accepted by 10.6.106. Removed clients
   and rapid reverse port moves can retain cached associations; immediate offline/
   reassociation and exact aging time are not guaranteed. No controller-side purge is used.
-- Read-only FDB clients and scoped IPv4 ARP/DHCP enrichment are implemented. No
-  LLDP/MNDP collection, VLAN configuration or hardware health sensors are implemented.
+- Read-only FDB clients, scoped IPv4 ARP/DHCP enrichment and neighbor-cache
+  collection are implemented. Only unambiguous LLDP-only records with known remote
+  port/MAC enter UniFi; MNDP/CDP, merged protocols and unknown ports stay diagnostic.
+  No VLAN configuration or hardware health sensors are implemented.
 - FDB bond/unmapped/conflicting/static-only entries are not guessed into live physical
   clients. Unknown IP/VID is not fabricated; one MAC/VID in multiple bridges is ambiguous.
-- M3 still needs actual-hardware client validation. UniFi can cache removed clients
+- M3 client visibility is user-confirmed. UniFi can cache removed clients
   and merge one MAC across VLANs; exact offline/reassociation behavior is not guaranteed.
 - RouterOS 7.24+ (7.x stable) is version-gated. The user confirmed a successful
-  RB760iGS 7.24.4 probe after correcting API allowed source IPs. Detailed API values,
+  RB760iGS 7.24.4 probe after correcting API allowed source IPs. Live
   port activity/statistics in UniFi are user-confirmed. Detailed counters, optional
-  warnings and M3 physical-hardware client behavior remain unreviewed.
+  warnings and M4 physical-hardware neighbor behavior remain unreviewed.
 - Required RouterOS API failure suppresses inform telemetry and may make the emulator
   appear offline. Optional unknown values are omitted and can retain cached UI values.
 - API-SSL verifies trust and hostname. The requested API/8728 mode sends credentials
@@ -47,7 +49,8 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
   if the lab controller explicitly supports it with a trusted certificate.
 - Diagnostic `exchanging` and container health do not prove Adopted/Connected UI status.
 - Adoption/Connected is observed for the synthetic profile with 10.6.106 only;
-  no compatibility claim for 8.0.24, other versions or actual RouterOS hardware.
+  no compatibility claim for 8.0.24 or other controller versions. User-reported
+  RouterOS hardware validation covers ports/statistics and M3 clients.
 - This profile advertises a resolved IPv4 inform endpoint; IPv6-only controllers
   are unsupported. DNS transport names remain supported with normal TLS verification.
 - Controller image v8.0.24 is old, third-party software, intended only for an isolated

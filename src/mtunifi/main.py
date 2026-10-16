@@ -126,6 +126,8 @@ def main() -> int:
                             telemetry["active_clients"] if telemetry else None if routeros else 0
                         ),
                         "wired_clients_source": "routeros-fdb" if routeros else "synthetic",
+                        "neighbors": telemetry.get("neighbors") if telemetry else None,
+                        "neighbors_source": "routeros-neighbor-cache" if routeros else "synthetic",
                         "synthetic_telemetry": None if routeros else telemetry,
                         "routeros_telemetry": telemetry if routeros else None,
                         "adoption_note": (

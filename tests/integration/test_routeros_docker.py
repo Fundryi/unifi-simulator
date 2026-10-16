@@ -21,6 +21,22 @@ EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 async def test_rootless_container_routeros_source_and_gcm_restart(routeros_peer, tls):
     image = os.environ.get("MTUNIFI_DOCKER_IMAGE", "mtunifi:dev")
     peer = await routeros_peer(tls=tls)
+    original = peer.tables
+
+    def tables():
+        result = original()
+        result["/ip/neighbor/print"] = [
+            {
+                "interface": "ether2",
+                "mac-address": "00:11:22:33:44:99",
+                "interface-name": "Gi1/0/8",
+                "discovered-by": "lldp",
+                "identity": "upstream",
+            }
+        ]
+        return result
+
+    peer.tables = tables
     settings = peer.settings()
     settings.routeros_password_file.chmod(0o444)
     volume = "mtunifi-m2-smoke-" + uuid.uuid4().hex
@@ -107,6 +123,11 @@ async def test_rootless_container_routeros_source_and_gcm_restart(routeros_peer,
         assert report["phase"] == "exchanging" and report["has_private_key"]
         assert report["discovered_ports"] == 6 and report["synthetic_ports"] == 0
         assert report["wired_clients"] == 2
+        assert report["routeros_telemetry"]["neighbors"] == 1
+        assert report["neighbors"] == 1 and report["neighbors_source"] == "routeros-neighbor-cache"
+        (neighbor,) = packets[1].body["lldp_table"]
+        assert neighbor["chassis_id"] == "00:11:22:33:44:99"
+        assert neighbor["local_port_idx"] == 2 and neighbor["port_id"] == "Gi1/0/8"
         assert packets[1].mode == "gcm" and packets[0].mac == packets[1].mac
         assert packets[1].body["port_table"][0]["rx_bytes"] == peer.rx + 1
         wired = {c["mac"]: c for c in packets[1].body["port_table"][1]["mac_table"]}

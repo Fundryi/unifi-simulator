@@ -1,10 +1,42 @@
 # Executed validation — latest 2026-10-16
 
+## Milestone 4: observed neighbors and topology provenance — 2026-10-16
+
+Before requesting M4, the user confirmed deployment and visible M3 clients on their
+RB760iGS / RouterOS 7.24.4. M4 itself was checked against independent native API
+TCP/TLS fixtures and the actual isolated UniFi 10.6.106 controller, using the production
+Docker image. RouterOS neighbor data in this experiment was synthetic API fixture
+data, not a read from the physical MikroTik. No production identities or keys were
+imported; only the experiment's own temporary device was adopted/deleted via lab API.
+
+| Experiment | Observed outcome |
+| --- | --- |
+| Two LLDP-only cache records | Controller Connected; both local/remote port and neighbor MAC records retained |
+| Missing description | Controller accepted the second LLDP record without `chassis_descr` |
+| Neighbor move 1→2 | Controller replaced two prior records with one record on port 2 |
+| Neighbor API permission denied | Source neighbors=null/degraded; device stayed Connected, health passed; controller had zero LLDP records in this run |
+| MNDP-only record | One diagnostic observation, zero exported LLDP records and zero controller LLDP records |
+| Empty cache | Source observations/count=0, same emulator identity and adoption |
+| Missing/merged protocol, unknown remote port/MAC | Unit/native API checks preserve diagnostic evidence without fabricating an LLDP link |
+| Bridge/bond/ambiguous ports | Unresolved or conflicting evidence suppressed; verified physical+bridge alias accepted |
+| Malformed required row | Partial evidence retained diagnostically, whole LLDP field omitted; client/port informs and key retained |
+| Broken/oversized neighbor stream | Whole poll fails safely; no partial topology or synthetic fallback |
+
+Automated result with Docker opt-in: **212 passed, 1 skipped** (the separate opt-in
+real-controller pytest). Both UID-10001/read-only container cases checked actual
+LLDP MAC/local/remote port values over TCP and verified API-SSL, CBC-to-GCM exchange
+and identity persistence. Ruff lint/format and the Docker build passed. The actual
+controller experiment independently exercised Connected, LLDP acceptance, move,
+permission loss, MNDP-only and empty cache. The final image also passed the existing
+synthetic Docker smoke check (GCM/key persistence, scenario clients/LLDP and health).
+Dependencies and the lockfile were unchanged. No controller graph/browser rendering
+or physical-hardware M4 neighbor behavior is claimed. See [the export contract](topology.md).
+
 ## Milestone 3: FDB clients, VLAN and IPv4 enrichment — 2026-10-16
 
 The user confirmed M2 live port activity and correct statistics from their RB760iGS
-in UniFi before requesting M3. Physical-device M3 client collection has not yet been
-reported. M3 was exercised with independent native RouterOS API wire fixtures and
+in UniFi before requesting M3. They subsequently confirmed visible M3 clients on that
+hardware before requesting M4. M3 was exercised with native RouterOS API wire fixtures and
 the actual isolated UniFi 10.6.106 controller, using the production Docker image.
 Every client entered through encrypted device-side informs; no controller client
 creation/purge, direct database writes or real-device identity/key imports were used.
@@ -41,7 +73,7 @@ verified actual emitted client MAC/IP data and unknown IP/VID omission as UID 10
 Ruff lint/format and the Docker build passed; dependencies/lockfile were unchanged.
 The same final image passed the existing synthetic Docker smoke check, including
 GCM identity/key persistence, M1 clients/LLDP, read-only mounts and health.
-Browser rendering and actual-hardware M3 client behavior remain unverified.
+Browser rendering was not inspected by the agent; hardware client visibility is now user-confirmed.
 
 ## RouterOS connection diagnostics — 2026-10-16
 

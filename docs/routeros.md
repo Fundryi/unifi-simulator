@@ -1,4 +1,4 @@
-# Milestones 2/3: read-only RouterOS API collection
+# Milestones 2–4: read-only RouterOS API collection
 
 This collector targets stable **RouterOS 7.24+ (7.x)**. It reads physical Ethernet/SFP
 ports, link state/speed/duplex, absolute RX/TX byte counters, uptime, CPU and memory.
@@ -6,7 +6,7 @@ Bridge/VLAN/bond inventory and bridge membership are retained as diagnostic cont
 They are never counted as extra physical ports. Milestone 3 adds observed FDB clients
 with scoped ARP/DHCP enrichment and VLAN context; see [wired clients](wired-clients.md)
 for upgrade instructions, aging and ambiguity handling. No synthetic clients are added
-in RouterOS mode. Neighbor/topology collection remains milestone 4.
+in RouterOS mode. Milestone 4 adds [observed neighbors and topology provenance](topology.md).
 
 The requested deployment is **RB760iGS, 192.168.0.249:8728, RouterOS 7.24.4**, using
 the native API without TLS. The lab override explicitly selects that transport.
@@ -32,6 +32,7 @@ The only wire commands allowed by the client are:
 | Command | Purpose |
 | --- | --- |
 | `/login` | API session authentication |
+| `/ip/neighbor/print` | Existing LLDP/MNDP/CDP observations; no discovery configuration changes |
 | `/system/resource/print` | Version, uptime, CPU and memory |
 | `/system/identity/print` | Optional identity metadata |
 | `/interface/print` with `stats` | Interface kind, flags, absolute byte counters |
@@ -251,5 +252,6 @@ volumes, mounted fixture secrets, UID 10001 and a read-only root filesystem.
 The cloud connection to `192.168.0.249:8728` was refused and no RouterOS credentials
 were available there. The user subsequently confirmed a successful local probe on
 RB760iGS / 7.24.4 after correcting the API source-IP restriction and later confirmed
-live port activity/statistics in UniFi. Detailed counter accuracy, optional warnings
-and M3 hardware client correlation remain unreviewed.
+live port activity/statistics in UniFi. Detailed counter accuracy and optional warnings
+remain unreviewed. M3 client visibility on that hardware is now user-confirmed;
+M4 hardware neighbor collection and browser topology rendering remain unverified.

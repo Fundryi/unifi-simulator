@@ -168,6 +168,7 @@ class RouterOSPeer:
             "/ip/dhcp-server/print": [
                 {"name": "lan", "interface": "bridge-lan", "disabled": "false"}
             ],
+            "/ip/neighbor/print": [],
         }
 
     async def handle(self, reader, writer):

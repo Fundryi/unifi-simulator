@@ -125,4 +125,5 @@ The browser UI, traffic charts and topology graph have **not** been inspected he
 Check Ports, Client Devices and Topology manually. An unknown LLDP MAC does not guarantee
 a managed UniFi graph node. Client VLAN metadata does not configure VLAN membership,
 a gateway or DHCP. RouterOS collection and FDB clients are available in
-[M2/M3](wired-clients.md) as a separate source; real topology remains M4.
+[M2/M3](wired-clients.md) as a separate source; [M4 neighbor evidence](topology.md)
+adds conservative LLDP export from the RouterOS cache.

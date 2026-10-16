@@ -100,6 +100,7 @@ class Table(StrEnum):
     ARP = "/ip/arp/print"
     DHCP_LEASES = "/ip/dhcp-server/lease/print"
     DHCP_SERVERS = "/ip/dhcp-server/print"
+    NEIGHBORS = "/ip/neighbor/print"
 
 
 PROPERTIES = {
@@ -123,6 +124,9 @@ PROPERTIES = {
         "server,disabled,blocked"
     ),
     Table.DHCP_SERVERS: "name,interface,disabled,invalid",
+    Table.NEIGHBORS: (
+        "interface,mac-address,identity,interface-name,discovered-by,age,system-description"
+    ),
 }
 MONITOR = "/interface/ethernet/monitor"
 

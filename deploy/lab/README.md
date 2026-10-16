@@ -11,6 +11,8 @@ volume and uses a local password secret, without adding the simulator to the dat
 That RouterOS override now also enables [M3 wired clients](../../docs/wired-clients.md)
 from FDB with optional ARP/DHCP enrichment. Rebuild/recreate the emulator with the same
 files and identity; no additional write permissions or re-adoption are needed.
+It also enables [M4 neighbor provenance and LLDP](../../docs/topology.md) from the
+existing RouterOS neighbor cache, preserving incomplete/MNDP/CDP evidence in diagnostics.
 
 ```mermaid
 flowchart LR

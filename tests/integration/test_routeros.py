@@ -56,7 +56,7 @@ async def test_actual_api_wire_normalization_and_encrypted_inform(routeros_peer,
     assert not p3["up"] and p3["speed"] == 0
     assert not p5["enable"] and not p6["up"]
     assert not p7["enable"] and not p8["enable"] and "rx_bytes" not in p7
-    assert "lldp_table" not in body and len(p2["mac_table"]) == 2
+    assert body["lldp_table"] == [] and len(p2["mac_table"]) == 2
     assert body["mac"] == app.state.mac and not body["mac"].startswith("dc:2c:6e")
     report = store.load_telemetry()
     assert report["source"] == "routeros" and report["active_clients"] == 2

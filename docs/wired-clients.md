@@ -140,6 +140,8 @@ No controller-side client purge is used. Exact offline timing and rapid reassoci
 remain controller behavior; multiple VLANs for one MAC may collapse in controller
 client views despite distinct VID records in the inform.
 
-See [validation](validation.md) for executed tests. M3 FDB/enrichment on the physical
-RB760iGS still needs local confirmation; the user has confirmed M2 live ports/statistics.
-LLDP/MNDP and real topology remain milestone 4.
+See [validation](validation.md) for executed tests. The user confirmed M2 live
+ports/statistics and M3 client visibility on the physical RB760iGS. Milestone 4 adds
+[neighbor-cache evidence and conservative LLDP export](topology.md), without inferring
+intermediate switches from FDB clients. M4 hardware neighbors and topology UI still
+need local validation.

@@ -1,6 +1,6 @@
 # Architecture and milestone boundary
 
-M0–M3 implement a single emulator using outbound UniFi device protocol, with either
+M0–M4 implement a single emulator using outbound UniFi device protocol, with either
 synthetic telemetry or read-only RouterOS collection. There is no dashboard,
 controller API facade or automatic network discovery.
 
@@ -30,7 +30,9 @@ bounded polling and reconnect backoff. `snapshot.py` keeps vendor-neutral models
 maps up to eight physical ports into the existing US8 slots.
 `clients.py` correlates FDB identity/attachment with scoped optional ARP/DHCP metadata,
 excludes local MACs and tracks continuous observations without persisting client history.
-`routeros_values.py` shares bounded API value parsers across port and client collection.
+`neighbors.py` normalizes RouterOS neighbor-cache evidence, preserves protocol/port
+uncertainty and exports only eligible LLDP observations. It never creates inferred
+switches from FDB entries. `routeros_values.py` shares bounded API value parsers.
 
 `transport.py` resolves the controller's IPv4 address for the device-side JSON inform_url.
 UniFi 10.6.106 rejects a DNS hostname in that field during adoption. The actual HTTP URL,
@@ -50,8 +52,9 @@ RouterOS collection separates logical and physical interfaces and records unavai
 fields rather than guessed values. FDB attachment uses bridge/MAC/VID identity and
 explicit physical mapping; `None` versus empty client inventories preserves unavailable
 versus authoritative empty FDB. A source gap clears observation timing; MAC tables
-are omitted on FDB failure while port informs continue. Neighbor provenance remains
-later work; see `routeros-mapping.md`. One Emulator/Store per device isolates keys,
+are omitted on FDB failure while port informs continue. Neighbor inventories similarly
+distinguish unavailable from empty, retaining partial invalid evidence diagnostically.
+See `topology.md` for provenance and conservative export rules. One Emulator/Store per device isolates keys,
 controller state, collectors and reconnect handling. Only one process/device is exposed
 by the CLI; multi-device orchestration is deliberately deferred.
 

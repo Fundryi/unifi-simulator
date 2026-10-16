@@ -130,7 +130,11 @@ Its `lldp_table` describes chassis_id/chassis_descr, local_port_idx/local_port_n
 port_id/port_descr, is_wired. These are useful research leads, not implemented M0 fields.
 Gateway ipv4_active_leases is **not** evidence of a switch wired-client schema.
 How controller topology merges LLDP, FDB and other UniFi devices is unresolved.
-Client visibility, VLAN UI and topology all require separate experiments after adoption.
+M1 and M3 subsequently demonstrated synthetic/observed wired clients, including scoped
+VID/IP fields, through 10.6.106. M4 demonstrated RouterOS-fixture LLDP records (including
+missing descriptions), movement and empty tables in that controller API. Browser
+topology graph rendering remains unverified. See [validation](validation.md) and
+[M4 provenance/export rules](topology.md); no intermediary switches are inferred from FDB.
 
 ## 8. UniFi 10.6.106: DNS payload causes adoption HTTP 400
 
