@@ -1,5 +1,40 @@
 # Executed validation — latest 2026-10-16
 
+## RUBIK standalone deployment package — 2026-10-16
+
+The user confirmed the dual-role deployment working and requested an agent handoff
+for RUBIK at `/mnt/appdata/containers/unifi-emulator`. They explicitly confirmed a
+**different production controller**. The new `deploy/rubik` package therefore uses
+fresh identities, three per-device bind state directories, two file secrets, a
+pinned local image/source revision and a required external Docker network with
+three explicitly selected IPs. No test adoption keys or lab controller are migrated.
+The handoff leaves undisclosed controller URL/network/IP allocation to the deploying
+agent's inspection on RUBIK and records cutover, acceptance, backup and rollback.
+
+Compose validation checked all three profiles, actual advertised/network address
+agreement, distinct bind paths, fixed MikroTik targets, default WAN `ether1`, shared
+RB secret, read-only root, UID 10001 and no published ports. Each of the nine
+required deployment variables was separately omitted and configuration failed as
+expected. Compose normalizes `create_host_path: false` to an empty bind map; the
+check accounts for that representation rather than assuming the key stays present.
+
+An actual standalone Compose smoke copied the shipped file to a temporary appdata
+layout, with private secret files and three bind directories prepared for UID/GID
+10001. It used the existing production image (application/Dockerfile unchanged), a
+disposable bridge, two native API fixture peers and an encrypted HTTP peer. Only
+fixture target addresses/ports and inform cadence were overridden. All three
+pre-start probes succeeded without creating identity files. Starting the services
+created three distinct MACs/keys, then forced recreation retained each key/MAC and
+resumed GCM. US8/CRS preserved 8/26 slot tables, UGW3 preserved actual fixture WAN
+bytes, advertised IPs matched container IPs, and all three diagnose/health commands
+passed. Temporary containers/network/image tag and fixture state were cleaned.
+
+Ruff lint/format and diff checks passed. Application source, dependencies and lockfile
+were unchanged; the earlier full-suite results below were not rerun for this
+configuration/documentation-only package. No RUBIK connection, real MikroTik read,
+production controller adoption or final LAN IP reservation was performed in the
+cloud. Those checks are explicit acceptance steps for Soptík, not claimed outcomes.
+
 ## Simultaneous RB US8 + UGW3 and readoption fix — 2026-10-16
 
 The user reported deleting the original US8 and hitting

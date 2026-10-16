@@ -2,8 +2,8 @@
 
 This revision implements experimental M0/M1 synthetic telemetry and M2–M5 read-only
 RouterOS API collection. Hardware probe, live port activity/statistics and M3 client
-visibility and M4/M5 deployment are user-confirmed. Gateway WAN hardware
-validation and browser topology rendering remain pending.
+visibility, M4/M5 and dual-role RB US8 + UGW3 deployment are user-confirmed.
+Detailed WAN calibration and browser topology rendering remain pending.
 The M0 success criterion is an actually adopted switch remaining Connected in a real
 test UniFi controller; codec tests and a synthetic HTTP peer cannot satisfy that criterion.
 See `validation.md` for the real 10.6.106 controller API result. Manual UI inspection
@@ -23,8 +23,8 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
   Compose override keeps US8 switch/client collection alongside a separate UGW3
   service; both read the same RB API with distinct identities, volumes and lab IPs. No gateway LAN
   ports/clients, routing/NAT/DHCP configuration, DPI or internet-health probes are
-  implemented. See `gateway-wan.md` for deployment and rollback. Real RB WAN traffic
-  and browser/history display still require local validation.
+  implemented. See `gateway-wan.md` for deployment and rollback. Dual-role operation
+  is user-confirmed; detailed WAN calibration and browser/history remain unverified.
 - Three synthetic wired clients and LLDP were accepted by 10.6.106. Removed clients
   and rapid reverse port moves can retain cached associations; immediate offline/
   reassociation and exact aging time are not guaranteed. No controller-side purge is used.
@@ -64,7 +64,8 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
 - Adoption/Connected is observed for the synthetic profile with 10.6.106 only;
   no compatibility claim for 8.0.24 or other controller versions. User-reported
   RouterOS hardware validation covers ports/statistics, M3 clients and reported M4
-  and M5 deployment success. Gateway WAN hardware collection remains unverified.
+  and M5/dual-role US8 + UGW3 deployment success. Detailed WAN counter calibration
+  remains unverified.
 - This profile advertises a resolved IPv4 inform endpoint; IPv6-only controllers
   are unsupported. DNS transport names remain supported with normal TLS verification.
 - Controller image v8.0.24 is old, third-party software, intended only for an isolated
@@ -72,4 +73,6 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
 
 Do not import real device MACs, serial numbers or keys. Do not change production
 controller databases. Lab packet captures may reveal management secrets; keep them
-private and build only synthetic public fixtures. No production deployment is recommended.
+private and build only synthetic public fixtures. The operator-requested RUBIK
+deployment handoff is in `deploy/rubik/SOPTIK.md`; that host and its different
+production controller were not accessed by the cloud validation.

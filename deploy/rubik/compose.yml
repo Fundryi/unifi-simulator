@@ -1,0 +1,126 @@
+# Copy to /mnt/appdata/containers/unifi-emulator/compose.yml.
+# Source checkout is ./repo; runtime state and secrets stay outside Git/build context.
+name: unifi-emulator
+
+x-runtime: &runtime
+  image: unifi-emulator:${MTUNIFI_RELEASE:?Set the pinned source Git SHA}
+  build:
+    context: ./repo
+  user: "10001:10001"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  restart: unless-stopped
+  labels:
+    org.opencontainers.image.revision: ${MTUNIFI_RELEASE:?Set the pinned source Git SHA}
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+x-common-env: &common-env
+  MTUNIFI_INFORM_URL: ${MTUNIFI_INFORM_URL:?Set the production controller /inform URL}
+  MTUNIFI_STATE_DIR: /state
+  MTUNIFI_TELEMETRY_SOURCE: routeros
+  MTUNIFI_SYNTHETIC_FILE: ""
+  MTUNIFI_ENCRYPTION: cbc
+  MTUNIFI_PACKET_VERSION: "1"
+  MTUNIFI_TRACE: "false"
+
+x-rb-env: &rb-env
+  <<: *common-env
+  MTUNIFI_ROUTEROS_HOST: 192.168.0.249
+  MTUNIFI_ROUTEROS_PORT: "8728"
+  MTUNIFI_ROUTEROS_TLS: "false"
+  MTUNIFI_ROUTEROS_USER: ${MTUNIFI_ROUTEROS_USER:?Set the RB read-only API username}
+  MTUNIFI_ROUTEROS_PASSWORD_FILE: /run/secrets/routeros_rb760_password
+  MTUNIFI_ROUTEROS_POLL_INTERVAL: "10"
+  MTUNIFI_ROUTEROS_TIMEOUT: "10"
+
+x-maps: &maps
+  type: bind
+  source: ./repo/examples
+  target: /scenarios
+  read_only: true
+  bind:
+    create_host_path: false
+
+services:
+  emulator:
+    <<: *runtime
+    environment:
+      <<: *rb-env
+      MTUNIFI_DEVICE_IP: ${MTUNIFI_US8_IP:?Choose a free address in the Docker network}
+      MTUNIFI_HOSTNAME: mtunifi-rb760-us8
+      MTUNIFI_PROFILE: us8-experimental
+      MTUNIFI_ROUTEROS_MAP_FILE: /scenarios/routeros-rb760igs.json
+    volumes:
+      - type: bind
+        source: ./state/rb760-us8
+        target: /state
+        bind:
+          create_host_path: false
+      - *maps
+    networks:
+      devices:
+        ipv4_address: ${MTUNIFI_US8_IP:?Choose a free address in the Docker network}
+    secrets: [routeros_rb760_password]
+
+  emulator-gateway:
+    <<: *runtime
+    environment:
+      <<: *rb-env
+      MTUNIFI_DEVICE_IP: ${MTUNIFI_GATEWAY_IP:?Choose a different free address in the Docker network}
+      MTUNIFI_HOSTNAME: mtunifi-rb760-ugw3
+      MTUNIFI_PROFILE: ugw3-experimental
+      MTUNIFI_ROUTEROS_MAP_FILE: ""
+      MTUNIFI_ROUTEROS_WAN_INTERFACE: ${MTUNIFI_ROUTEROS_WAN_INTERFACE:-ether1}
+    volumes:
+      - type: bind
+        source: ./state/rb760-ugw3
+        target: /state
+        bind:
+          create_host_path: false
+    networks:
+      devices:
+        ipv4_address: ${MTUNIFI_GATEWAY_IP:?Choose a different free address in the Docker network}
+    secrets: [routeros_rb760_password]
+
+  emulator-crs326:
+    <<: *runtime
+    environment:
+      <<: *common-env
+      MTUNIFI_DEVICE_IP: ${MTUNIFI_CRS326_IP:?Choose a third free address in the Docker network}
+      MTUNIFI_HOSTNAME: mtunifi-crs326
+      MTUNIFI_PROFILE: usw-pro24-experimental
+      MTUNIFI_ROUTEROS_HOST: 192.168.0.251
+      MTUNIFI_ROUTEROS_PORT: "8728"
+      MTUNIFI_ROUTEROS_TLS: "false"
+      MTUNIFI_ROUTEROS_USER: ${MTUNIFI_CRS326_USER:?Set the CRS read-only API username}
+      MTUNIFI_ROUTEROS_PASSWORD_FILE: /run/secrets/routeros_crs326_password
+      MTUNIFI_ROUTEROS_MAP_FILE: /scenarios/routeros-crs326.json
+      MTUNIFI_ROUTEROS_POLL_INTERVAL: "10"
+      MTUNIFI_ROUTEROS_TIMEOUT: "20"
+    volumes:
+      - type: bind
+        source: ./state/crs326
+        target: /state
+        bind:
+          create_host_path: false
+      - *maps
+    networks:
+      devices:
+        ipv4_address: ${MTUNIFI_CRS326_IP:?Choose a third free address in the Docker network}
+    secrets: [routeros_crs326_password]
+
+networks:
+  devices:
+    external: true
+    name: ${MTUNIFI_DOCKER_NETWORK:?Select an existing Docker network with suitable IPv4 IPAM}
+
+secrets:
+  routeros_rb760_password:
+    file: ./.secrets/routeros-rb760-password
+  routeros_crs326_password:
+    file: ./.secrets/routeros-crs326-password

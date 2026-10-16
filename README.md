@@ -10,8 +10,8 @@ The user confirmed live port activity, correct statistics and visible wired clie
 from RB760iGS / RouterOS 7.24.4 in UniFi, and subsequently confirmed the M4 deployment
 working, followed by a successful M5 deployment. M5 adds a separate CRS326 target
 (192.168.0.251), a 26-port Switch Pro 24 profile and inventory CLI. An opt-in
-UGW3 profile now exposes the RB WAN; actual gateway hardware and browser topology
-remain to be verified.
+UGW3 profile exposes the RB WAN; the user subsequently confirmed the dual-role
+deployment working. Detailed counter calibration and browser topology remain unverified.
 
 | Capability | Status |
 | --- | --- |
@@ -104,6 +104,17 @@ Follow [the local adoption experiment](docs/adoption.md) for a disposable 8.0.24
 wizard setup, UI verification, port/firewall rules and troubleshooting. Real-controller
 tests are opt-in; the ordinary test suite never contacts UniFi or MikroTik equipment.
 
+## RUBIK deployment handoff
+
+The user confirmed the simultaneous RB US8 + UGW3 and CRS326 deployment working.
+For deployment to a **different production controller** on RUBIK, use the standalone
+[Compose and Soptík handoff](deploy/rubik/SOPTIK.md). Runtime files live at
+`/mnt/appdata/containers/unifi-emulator`, with three private bind state directories,
+two file secrets, a pinned source/image revision and an explicitly selected network.
+Create fresh identities for the new controller; preserve test volumes for rollback.
+The production controller endpoint, network and free device IPs must be discovered
+on RUBIK. This handoff does not start services on that host.
+
 ## Architecture and research
 
 Configuration -> synthetic source or RouterOS API collector -> snapshot mapping ->
@@ -134,8 +145,8 @@ backups. Optional protocol tracing logs metadata only. Never reuse real device i
 or keys, modify production controller databases, or capture traffic without authorization.
 The 10.6.106 result covers the synthetic UniFi profile. A successful actual MikroTik
 API probe, live port activity/statistics and M3 wired clients are user-confirmed.
-M4 and M5 deployment success are user-reported. Gateway hardware WAN collection,
-detailed counter calibration and other controller releases remain unverified.
+M4/M5 and simultaneous RB US8 + UGW3 deployment success are user-reported.
+Detailed counter calibration and other controller releases remain unverified.
 
 ## Milestones
 
@@ -147,6 +158,6 @@ detailed counter calibration and other controller releases remain unverified.
 5. Add independent multi-device orchestration.
 
 Milestones 0–5 have native fixtures and real controller API observations. The user
-confirmed M2 ports/statistics, M3 clients and M4/M5 deployment. Gateway WAN
-hardware behavior and browser topology rendering still require local validation.
+confirmed M2 ports/statistics, M3 clients, M4/M5 and dual-role US8 + UGW3 deployment.
+Detailed WAN counter calibration and browser topology rendering remain unverified.
 License: MIT. Upstream protocol research and licensing notes are recorded in the research document.

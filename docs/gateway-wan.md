@@ -200,3 +200,11 @@ and UniFi 10.6.106 observations. RouterOS observations in the cloud come from
 independent API fixtures. Actual RB WAN traffic, browser graphs and long-term
 history still need verification on the user's deployment. The earlier M5 synthetic
 feasibility experiment is retained in that report as historical evidence.
+
+## RUBIK with a different production controller
+
+The user confirmed dual-role operation working and requested deployment on RUBIK
+under `/mnt/appdata/containers/unifi-emulator`. Use the standalone
+[Soptík handoff and production Compose](../deploy/rubik/SOPTIK.md), with fresh
+identities for the different controller. Do not copy test keys or reuse lab overrides.
+The RB/CRS target IPs and default WAN ether1 stay unchanged.
