@@ -52,6 +52,9 @@ The summary's outer `age_seconds` is time since the poll; add it to a known neig
 cache age when interpreting cached diagnostics. Age is not device uptime, a TTL or
 proof of a recently received packet. RouterOS owns cache expiration; each successful
 poll replaces the previous observations. The emulator does not invent a timeout.
+M5 also supports the [26-slot CRS326 profile and independent devices](multi-device.md);
+these evidence rules apply to its SFP+ slots as well. Neighbor MACs are not rewritten
+to another emulator's synthetic identity.
 
 ## Conservative export rules
 

@@ -1,4 +1,4 @@
-"""Vendor-neutral observations and the current eight-slot UniFi mapping."""
+"""Vendor-neutral observations and profile-sized UniFi switch mapping."""
 
 from dataclasses import asdict, dataclass
 
@@ -134,9 +134,9 @@ class DeviceSnapshot:
         return asdict(self)
 
 
-def unifi_snapshot(snapshot: DeviceSnapshot, *, age_seconds: int = 0) -> dict:
+def unifi_snapshot(snapshot: DeviceSnapshot, *, age_seconds: int = 0, port_count: int = 8) -> dict:
     by_slot = {port.port_idx: port for port in snapshot.ports}
-    clients_by_port: dict[int, list] = {i: [] for i in range(1, 9)}
+    clients_by_port: dict[int, list] = {i: [] for i in range(1, port_count + 1)}
     clients = snapshot.wired.clients if snapshot.wired is not None else None
     for client in clients or ():
         port = by_slot.get(client.port_idx)
@@ -156,7 +156,7 @@ def unifi_snapshot(snapshot: DeviceSnapshot, *, age_seconds: int = 0) -> dict:
             entry["hostname"] = client.hostname
         clients_by_port[client.port_idx].append(entry)
     ports = []
-    for slot in range(1, 9):
+    for slot in range(1, port_count + 1):
         port = by_slot.get(slot)
         if port is None:
             entry = {"port_idx": slot, "enable": False, "up": False, "speed": 0}

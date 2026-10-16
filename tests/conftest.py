@@ -59,6 +59,7 @@ class RouterOSPeer:
         self.rx = 9007199254740993
         self.ca = None
         self.monitors = {}
+        self.password = PASSWORD
 
     def tables(self):
         physical = [f"ether{i}" for i in range(1, 6)] + ["sfp1"]
@@ -176,7 +177,7 @@ class RouterOSPeer:
         self.tasks.add(task)
         try:
             words = await receive(reader)
-            assert words == ["/login", "=name=observer", "=password=" + PASSWORD]
+            assert words == ["/login", "=name=observer", "=password=" + self.password]
             self.logins += 1
             self.commands.append(("/login",))  # Never keep a credential-bearing capture.
             if "/login" in self.traps:
@@ -278,7 +279,7 @@ class RouterOSPeer:
 
     def settings(self, **overrides):
         password = self.directory / "password"
-        password.write_text(PASSWORD + "\n")
+        password.write_text(self.password + "\n")
         mapping = Path(__file__).resolve().parents[1] / "examples" / ("routeros-rb760igs.json")
         return Settings(
             telemetry_source="routeros",
@@ -315,3 +316,65 @@ async def routeros_peer(tmp_path):
     yield start
     for peer in peers:
         await peer.close()
+
+
+def configure_crs326(peer):
+    """26-port fixture, including observed clients/LLDP on the SFP+ slots."""
+    original = peer.tables
+
+    def tables():
+        result = original()
+        names = [f"ether{i}" for i in range(1, 25)] + ["sfp-sfpplus1", "sfp-sfpplus2"]
+        result["/system/resource/print"][0]["board-name"] = "CRS326-24G-2S+"
+        logical = [r for r in result["/interface/print"] if r["type"] != "ether"]
+        result["/interface/print"] = logical + [
+            {
+                ".id": f"*{i}",
+                "name": name,
+                "type": "ether",
+                "disabled": "false",
+                "running": "true" if i in (24, 25, 26) else "false",
+                "rx-byte": str(peer.rx + i),
+                "tx-byte": str(2000 + i),
+            }
+            for i, name in enumerate(names, 1)
+        ]
+        result["/interface/ethernet/print"] = [
+            {
+                ".id": f"*{i}",
+                "name": name,
+                "default-name": name,
+                "mac-address": f"DC:2C:6E:01:00:{i:02X}",
+            }
+            for i, name in enumerate(names, 1)
+        ]
+        for row, interface in zip(
+            result["/interface/bridge/host/print"][:2], ("ether24", "sfp-sfpplus2"), strict=True
+        ):
+            row["on-interface"] = interface
+        result["/interface/bridge/port/print"] = [
+            {"interface": name, "bridge": "bridge-lan", "disabled": "false", "pvid": "1"}
+            for name in ("ether24", "sfp-sfpplus1", "sfp-sfpplus2")
+        ]
+        result["/ip/neighbor/print"] = [
+            {
+                "interface": "sfp-sfpplus2",
+                "mac-address": "00:11:22:33:55:99",
+                "discovered-by": "lldp",
+                "interface-name": "SFP+1",
+                "identity": "fixture-core",
+            }
+        ]
+        return result
+
+    peer.tables = tables
+    for i in range(1, 27):
+        peer.monitors[f"*{i}"] = [
+            {
+                "status": "link-ok" if i in (24, 25, 26) else "no-link",
+                "rate": "10Gbps" if i >= 25 else "1Gbps",
+                "full-duplex": "yes",
+                "auto-negotiation": "done",
+            }
+        ]
+    return peer

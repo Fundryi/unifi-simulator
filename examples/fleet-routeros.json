@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "devices": [
+    {
+      "id": "rb760igs",
+      "settings": {
+        "inform_url": "http://127.0.0.1:8080/inform",
+        "state_dir": "../.state/fleet-rb760igs",
+        "hostname": "mtunifi-rb760igs",
+        "device_ip": "172.30.88.10",
+        "profile": "us8-experimental",
+        "telemetry_source": "routeros",
+        "routeros_host": "192.168.0.249",
+        "routeros_port": 8728,
+        "routeros_tls": false,
+        "routeros_user": "unifi-reader",
+        "routeros_password_file": "../.secrets/routeros-password",
+        "routeros_map_file": "routeros-rb760igs.json",
+        "routeros_timeout": 20
+      }
+    },
+    {
+      "id": "crs326",
+      "settings": {
+        "inform_url": "http://127.0.0.1:8080/inform",
+        "state_dir": "../.state/fleet-crs326",
+        "hostname": "mtunifi-crs326",
+        "device_ip": "172.30.88.11",
+        "profile": "usw-pro24-experimental",
+        "telemetry_source": "routeros",
+        "routeros_host": "192.168.0.251",
+        "routeros_port": 8728,
+        "routeros_tls": false,
+        "routeros_user": "unifi-reader",
+        "routeros_password_file": "../.secrets/routeros-crs326-password",
+        "routeros_map_file": "routeros-crs326.json",
+        "routeros_timeout": 20
+      }
+    }
+  ]
+}

@@ -12,6 +12,7 @@ from pydantic import Field, ValidationError, field_validator, model_validator
 from mtunifi.clients import ClientTracker, correlate_clients
 from mtunifi.config import Settings
 from mtunifi.neighbors import collect_neighbors
+from mtunifi.profiles import profile
 from mtunifi.routeros_api import RouterOSAPI, RouterOSError, Table, api_error, api_target
 from mtunifi.routeros_values import boolean, number, text, uptime_seconds
 from mtunifi.scenario import LabModel
@@ -26,7 +27,7 @@ from mtunifi.snapshot import (
 
 
 class PortMapping(LabModel):
-    port_idx: int = Field(ge=1, le=8)
+    port_idx: int = Field(ge=1, le=26)
     interface: str = Field(min_length=1, max_length=128)
     is_uplink: bool = False
 
@@ -40,10 +41,13 @@ class PortMapping(LabModel):
 
 class RouterOSMap(LabModel):
     schema_version: Literal[1] = 1
-    ports: list[PortMapping] = Field(min_length=1, max_length=8)
+    profile: str = "us8-experimental"
+    ports: list[PortMapping] = Field(min_length=1, max_length=26)
 
     @model_validator(mode="after")
     def unique_ports(self):
+        if any(p.port_idx > profile(self.profile).port_count for p in self.ports):
+            raise ValueError("Port slot exceeds the selected profile")
         if len({p.port_idx for p in self.ports}) != len(self.ports) or len(
             {p.interface for p in self.ports}
         ) != len(self.ports):
@@ -158,8 +162,8 @@ async def collect_device(
         duplex = boolean(monitor.get("full-duplex")) if up else None
         if up and (speed is None or duplex is None):
             warnings.append(f"port-{item.port_idx}:link-details-unavailable")
-        if speed is not None and speed > 1000:
-            warnings.append(f"port-{item.port_idx}:exceeds-us8-profile")
+        if speed is not None and speed > profile(mapping.profile).max_speeds[item.port_idx - 1]:
+            warnings.append(f"port-{item.port_idx}:exceeds-profile-capacity")
         ports.append(
             PhysicalPort(
                 port_idx=item.port_idx,
@@ -272,6 +276,8 @@ class RouterOSSource:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.mapping = load_mapping(settings.routeros_map_file)
+        if self.mapping.profile != settings.profile:
+            raise RouterOSError("port-map-profile-mismatch")
         self.status = "unavailable"
         self.last_summary = None
         self._snapshot: DeviceSnapshot | None = None
@@ -319,7 +325,11 @@ class RouterOSSource:
                 self._clients.clear()
         snapshot = self._snapshot
         body = (
-            unifi_snapshot(snapshot, age_seconds=max(0, int(now - self._observed_mono)))
+            unifi_snapshot(
+                snapshot,
+                age_seconds=max(0, int(now - self._observed_mono)),
+                port_count=profile(self.settings.profile).port_count,
+            )
             if (snapshot is not None and self._error is None)
             else None
         )

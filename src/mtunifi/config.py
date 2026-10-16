@@ -6,6 +6,8 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from mtunifi.profiles import profile
+
 
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -70,6 +72,8 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def source_settings(self):
+        if self.profile != "us8-experimental" and self.telemetry_source != "routeros":
+            raise ValueError("This profile requires RouterOS telemetry")
         if self.telemetry_source == "routeros":
             if not all(
                 (
@@ -116,10 +120,7 @@ class Settings(BaseModel):
     @field_validator("profile")
     @classmethod
     def valid_profile(cls, value: str) -> str:
-        if value != "us8-experimental":
-            raise ValueError(
-                "Only us8-experimental is implemented; model substitution is unsupported"
-            )
+        profile(value)
         return value
 
     @classmethod

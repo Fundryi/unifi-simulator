@@ -9,6 +9,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
+from mtunifi.profiles import profile
+
+
+class StateBindingError(ValueError):
+    """Fixed messages only; never include persisted values or private keys."""
+
 
 class State(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
@@ -23,6 +29,32 @@ class State(BaseModel):
     last_attempt: float | None = None
     last_telemetry: float | None = None
     last_error: str | None = None
+    profile: str | None = None
+    routeros_host: str | None = Field(default=None, pattern=r"^[A-Za-z0-9.:-]{1,253}$")
+
+    @field_validator("profile")
+    @classmethod
+    def valid_profile(cls, value):
+        if value is not None:
+            profile(value)
+        return value
+
+    def check_binding(self, selected_profile: str, routeros_host: str | None):
+        previous = self.profile
+        if previous is None and (self.controller_url is not None or self.authkey is not None):
+            previous = "us8-experimental"  # Existing M0–M4 identities were all US8.
+        if previous is not None and previous != selected_profile:
+            raise StateBindingError("Profile differs from persisted identity; use separate state")
+        if self.routeros_host is not None and self.routeros_host != (
+            routeros_host.lower() if routeros_host else None
+        ):
+            raise StateBindingError("RouterOS target differs from persisted identity")
+
+    def bind(self, selected_profile: str, routeros_host: str | None):
+        self.check_binding(selected_profile, routeros_host)
+        self.profile = selected_profile
+        if routeros_host is not None:
+            self.routeros_host = routeros_host.lower()
 
     @field_validator("mac")
     @classmethod

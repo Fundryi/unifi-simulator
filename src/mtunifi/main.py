@@ -4,20 +4,22 @@ import json
 import logging
 import sys
 import time
+from pathlib import Path
 
 from pydantic import ValidationError
 
 from mtunifi.config import Settings
 from mtunifi.emulator import Emulator
+from mtunifi.profiles import profile
 from mtunifi.routeros_api import RouterOSError, api_target
 from mtunifi.scenario import ScenarioError, SyntheticSource
 from mtunifi.sources import create_source
-from mtunifi.storage import Store
+from mtunifi.storage import StateBindingError, Store
 from mtunifi.telemetry import inform
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Experimental synthetic UniFi switch emulator")
+    parser = argparse.ArgumentParser(description="Experimental UniFi device protocol emulator")
     parser.add_argument(
         "command",
         choices=(
@@ -29,14 +31,23 @@ def main() -> int:
             "validate-scenario",
             "reset-adoption",
             "probe-routeros",
+            "validate-inventory",
         ),
     )
     parser.add_argument("--once", action="store_true", help="Run one inform; nonzero on failure")
+    parser.add_argument("--inventory", type=Path, help="Independent device settings in a JSON file")
+    parser.add_argument("--device", help="Select one inventory device by its stable ID")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     try:
+        if args.inventory is not None:
+            from mtunifi.fleet import fleet_command
+
+            return fleet_command(args.inventory, args.command, args.device, args.once)
+        if args.device is not None or args.command == "validate-inventory":
+            raise ValueError("An inventory is required")
         settings = Settings.from_env()
         if args.command == "probe-routeros":
             if settings.telemetry_source != "routeros":
@@ -62,6 +73,10 @@ def main() -> int:
         if args.command == "reset-adoption":
             with store.lock():
                 state = store.load()  # Never manufacture an identity when resetting missing state.
+                state.check_binding(
+                    settings.profile,
+                    settings.routeros_host if settings.telemetry_source == "routeros" else None,
+                )
                 if state.controller_url not in (None, settings.inform_url):
                     raise RuntimeError("State belongs to another controller")
                 state.reset_adoption()
@@ -80,6 +95,10 @@ def main() -> int:
             return 0
         if args.command in ("diagnose", "health"):
             state = store.load()
+            state.check_binding(
+                settings.profile,
+                settings.routeros_host if settings.telemetry_source == "routeros" else None,
+            )
             age = time.time() - state.last_inform if state.last_inform else None
             telemetry = store.load_telemetry()
             if telemetry and telemetry.get("source") != settings.telemetry_source:
@@ -117,6 +136,8 @@ def main() -> int:
                     state.public()
                     | {
                         "controller": settings.inform_url,
+                        "selected_profile": settings.profile,
+                        "model": profile(settings.profile).model,
                         "last_inform_age_seconds": age,
                         "routeros": routeros_status,
                         "telemetry_source": settings.telemetry_source,
@@ -143,6 +164,10 @@ def main() -> int:
         source = create_source(settings) if args.command != "init" else None
         with store.lock():
             state = store.load_or_create()
+            state.bind(
+                settings.profile,
+                settings.routeros_host if settings.telemetry_source == "routeros" else None,
+            )
             if args.command == "init":
                 print(json.dumps(state.public(), indent=2))
             elif args.command == "sample":
@@ -159,6 +184,12 @@ def main() -> int:
         )
         if isinstance(exc, RouterOSError):
             details = exc.public() | {"routeros_target": api_target(settings)}
+        if isinstance(exc, StateBindingError):
+            details = {"reason": str(exc)}
+        from mtunifi.fleet import InventoryError
+
+        if isinstance(exc, InventoryError):
+            details = {"reason": str(exc)}
         print(
             json.dumps(
                 {

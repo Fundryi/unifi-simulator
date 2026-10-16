@@ -1,0 +1,37 @@
+# Merge after compose.simulator.yml and compose.routeros.yml.
+# The original emulator keeps its existing name, IP and simulator-state volume.
+services:
+  emulator-crs326:
+    extends:
+      file: compose.simulator.yml
+      service: emulator
+    environment:
+      MTUNIFI_INFORM_URL: http://unifi-network-application:8080/inform
+      MTUNIFI_DEVICE_IP: ${MTUNIFI_CRS326_IP:-172.30.88.11}
+      MTUNIFI_HOSTNAME: ${MTUNIFI_CRS326_HOSTNAME:-mtunifi-crs326}
+      MTUNIFI_PROFILE: usw-pro24-experimental
+      MTUNIFI_TELEMETRY_SOURCE: routeros
+      MTUNIFI_SYNTHETIC_FILE: ""
+      MTUNIFI_ROUTEROS_HOST: ${MTUNIFI_CRS326_HOST:-192.168.0.251}
+      MTUNIFI_ROUTEROS_PORT: ${MTUNIFI_CRS326_PORT:-8728}
+      MTUNIFI_ROUTEROS_TLS: ${MTUNIFI_CRS326_TLS:-false}
+      MTUNIFI_ROUTEROS_USER: ${MTUNIFI_CRS326_USER:?Set the CRS326 read-only API username}
+      MTUNIFI_ROUTEROS_PASSWORD_FILE: /run/secrets/routeros_crs326_password
+      MTUNIFI_ROUTEROS_CA_FILE: ${MTUNIFI_CRS326_CA_FILE:-}
+      MTUNIFI_ROUTEROS_MAP_FILE: /scenarios/${MTUNIFI_CRS326_MAP:-routeros-crs326.json}
+      MTUNIFI_ROUTEROS_POLL_INTERVAL: ${MTUNIFI_CRS326_POLL_INTERVAL:-10}
+      MTUNIFI_ROUTEROS_TIMEOUT: ${MTUNIFI_CRS326_TIMEOUT:-20}
+    networks:
+      lab:
+        ipv4_address: ${MTUNIFI_CRS326_IP:-172.30.88.11}
+    volumes:
+      - crs326-state:/state
+    secrets:
+      - routeros_crs326_password
+
+volumes:
+  crs326-state:
+
+secrets:
+  routeros_crs326_password:
+    file: ../../.secrets/routeros-crs326-password

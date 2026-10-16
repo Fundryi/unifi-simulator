@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "profile": "usw-pro24-experimental",
+  "ports": [
+    {
+      "port_idx": 1,
+      "interface": "ether1"
+    },
+    {
+      "port_idx": 2,
+      "interface": "ether2"
+    },
+    {
+      "port_idx": 3,
+      "interface": "ether3"
+    },
+    {
+      "port_idx": 4,
+      "interface": "ether4"
+    },
+    {
+      "port_idx": 5,
+      "interface": "ether5"
+    },
+    {
+      "port_idx": 6,
+      "interface": "ether6"
+    },
+    {
+      "port_idx": 7,
+      "interface": "ether7"
+    },
+    {
+      "port_idx": 8,
+      "interface": "ether8"
+    },
+    {
+      "port_idx": 9,
+      "interface": "ether9"
+    },
+    {
+      "port_idx": 10,
+      "interface": "ether10"
+    },
+    {
+      "port_idx": 11,
+      "interface": "ether11"
+    },
+    {
+      "port_idx": 12,
+      "interface": "ether12"
+    },
+    {
+      "port_idx": 13,
+      "interface": "ether13"
+    },
+    {
+      "port_idx": 14,
+      "interface": "ether14"
+    },
+    {
+      "port_idx": 15,
+      "interface": "ether15"
+    },
+    {
+      "port_idx": 16,
+      "interface": "ether16"
+    },
+    {
+      "port_idx": 17,
+      "interface": "ether17"
+    },
+    {
+      "port_idx": 18,
+      "interface": "ether18"
+    },
+    {
+      "port_idx": 19,
+      "interface": "ether19"
+    },
+    {
+      "port_idx": 20,
+      "interface": "ether20"
+    },
+    {
+      "port_idx": 21,
+      "interface": "ether21"
+    },
+    {
+      "port_idx": 22,
+      "interface": "ether22"
+    },
+    {
+      "port_idx": 23,
+      "interface": "ether23"
+    },
+    {
+      "port_idx": 24,
+      "interface": "ether24"
+    },
+    {
+      "port_idx": 25,
+      "interface": "sfp-sfpplus1"
+    },
+    {
+      "port_idx": 26,
+      "interface": "sfp-sfpplus2"
+    }
+  ]
+}

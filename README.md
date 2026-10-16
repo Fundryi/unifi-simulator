@@ -1,14 +1,15 @@
-# MikroTik UniFi Switch Emulator — experimental M0–M4
+# MikroTik UniFi Switch Emulator — experimental M0–M5
 
 The goal is a Docker service that makes RouterOS 7 switches visible in UniFi Network
 through the **device-side inform protocol**, with observed ports, wired clients
 and neighbor evidence. This revision implements synthetic milestones 0/1 and a
 read-only RouterOS 7.24+ API collector with FDB/ARP/DHCP clients and observed neighbor
-provenance for milestones 2–4. Adoption and Connected state have been observed
+provenance and independent multi-device supervision for milestones 2–5. Adoption and Connected state have been observed
 through an isolated UniFi Network 10.6.106 controller API.
 The user confirmed live port activity, correct statistics and visible wired clients
-from RB760iGS / RouterOS 7.24.4 in UniFi. M4 neighbor collection on that hardware,
-browser topology rendering and other controller versions remain unverified.
+from RB760iGS / RouterOS 7.24.4 in UniFi, and subsequently confirmed the M4 deployment
+working. M5 adds a separate CRS326 target (192.168.0.251), a 26-port Switch Pro 24
+profile and inventory CLI. Actual CRS hardware and browser topology remain unverified.
 
 | Capability | Status |
 | --- | --- |
@@ -23,7 +24,8 @@ browser topology rendering and other controller versions remain unverified.
 | Read-only RouterOS 7.24+ API/API-SSL, six-port RB760iGS mapping | TCP/TLS fixtures tested; user confirmed local 7.24.4 probe after API source-IP correction |
 | Observed FDB clients, VLAN scope, optional ARP/DHCP IP/name, aging | Implemented; wire fixtures and 10.6.106 controller API tested |
 | RouterOS neighbor evidence and conservative LLDP topology export | Implemented; protocol/port uncertainty retained in diagnostics; 10.6.106 API tested |
-| VLAN configuration, multi-device CLI | Not implemented |
+| Independent devices, inventory CLI and separate CRS326 Compose service | Implemented; isolated processes/state/keys, eight- and 26-slot profiles |
+| VLAN configuration, gateway production adapter | Not implemented; [USG/WAN feasibility](docs/gateway-wan.md) demonstrated in isolated lab |
 | Applying controller configuration to MikroTik | Unsupported by design |
 
 ## Development quick start
@@ -54,6 +56,10 @@ For real wired clients, VLAN scoping, unknown IP, moves and aging, see
 [Milestone 3 wired clients](docs/wired-clients.md). The same RouterOS Compose override
 enables M3 and [M4 observed neighbors](docs/topology.md) after rebuilding, preserving
 adoption and read-only credentials.
+For the second CRS326 target, independent secrets/state and upgrade instructions,
+see [M5 multi-device setup](docs/multi-device.md). The RB stays US8; a separate
+[USG/WAN assessment](docs/gateway-wan.md) records successful gateway adoption and
+controller-computed WAN rates with synthetic data.
 The lab Compose now selects the demo scenario by default and preserves adoption state.
 If you deleted the device in UniFi and now see GCM `exchanging` with HTTP 400,
 follow [re-adoption without changing MAC](docs/adoption.md#re-adopt-a-device-deleted-from-the-controller).
@@ -123,7 +129,8 @@ backups. Optional protocol tracing logs metadata only. Never reuse real device i
 or keys, modify production controller databases, or capture traffic without authorization.
 The 10.6.106 result covers the synthetic UniFi profile. A successful actual MikroTik
 API probe, live port activity/statistics and M3 wired clients are user-confirmed.
-M4 hardware neighbors, detailed counter accuracy and other controller releases remain unverified.
+M4 deployment success is user-reported. Detailed counters, M5 CRS hardware and
+other controller releases remain unverified.
 
 ## Milestones
 
@@ -134,7 +141,7 @@ M4 hardware neighbors, detailed counter accuracy and other controller releases r
 4. Establish topology with explicit observation/inference provenance.
 5. Add independent multi-device orchestration.
 
-Milestones 0–4 have native fixtures and real controller API observations. The user
-confirmed M2 port activity/statistics and M3 clients on RouterOS 7.24.4. M4 hardware
-neighbor collection and browser topology rendering still require local validation.
+Milestones 0–5 have native fixtures and real controller API observations. The user
+confirmed M2 ports/statistics, M3 clients and M4 deployment on the RB. M5 CRS
+hardware behavior and browser topology rendering still require local validation.
 License: MIT. Upstream protocol research and licensing notes are recorded in the research document.

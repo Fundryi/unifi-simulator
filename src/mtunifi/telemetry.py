@@ -3,6 +3,7 @@
 import time
 
 from mtunifi.config import Settings
+from mtunifi.profiles import profile
 from mtunifi.scenario import SyntheticSource
 from mtunifi.storage import State
 
@@ -19,11 +20,12 @@ def inform(
         if settings.telemetry_source != "synthetic":
             raise ValueError("RouterOS telemetry requires a collected snapshot")
         snapshot = SyntheticSource(settings.synthetic_file).snapshot(0, state.mac)
+    device_profile = profile(settings.profile)
     return {
-        "model": "US8",
-        "model_display": "UniFi Switch 8",
-        "version": "4.3.28.11361",
-        "required_version": "5.4.0",
+        "model": device_profile.model,
+        "model_display": device_profile.display,
+        "version": device_profile.version,
+        "required_version": device_profile.required_version,
         "mac": state.mac,
         "serial": state.mac.replace(":", "").upper(),
         "hostname": settings.hostname,

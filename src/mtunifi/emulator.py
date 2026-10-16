@@ -101,6 +101,13 @@ class Emulator:
             raise RuntimeError(
                 "State belongs to another controller; use a separate state directory"
             )
+        previous_binding = (state.profile, state.routeros_host)
+        state.bind(
+            self.settings.profile,
+            self.settings.routeros_host if self.settings.telemetry_source == "routeros" else None,
+        )
+        if previous_binding != (state.profile, state.routeros_host):
+            self.store.save(state)
         state.controller_url = self.settings.inform_url
         key = bytes.fromhex(state.authkey.get_secret_value()) if state.authkey else BOOTSTRAP_KEY
         mode = state.encryption if state.authkey else self.settings.encryption

@@ -1,4 +1,4 @@
-# Milestones 2–4: read-only RouterOS API collection
+# Milestones 2–5: read-only RouterOS API collection
 
 This collector targets stable **RouterOS 7.24+ (7.x)**. It reads physical Ethernet/SFP
 ports, link state/speed/duplex, absolute RX/TX byte counters, uptime, CPU and memory.
@@ -7,6 +7,7 @@ They are never counted as extra physical ports. Milestone 3 adds observed FDB cl
 with scoped ARP/DHCP enrichment and VLAN context; see [wired clients](wired-clients.md)
 for upgrade instructions, aging and ambiguity handling. No synthetic clients are added
 in RouterOS mode. Milestone 4 adds [observed neighbors and topology provenance](topology.md).
+Milestone 5 adds [independent CRS326 collection, a 26-port profile and inventory CLI](multi-device.md).
 
 The requested deployment is **RB760iGS, 192.168.0.249:8728, RouterOS 7.24.4**, using
 the native API without TLS. The lab override explicitly selects that transport.
@@ -254,4 +255,5 @@ were available there. The user subsequently confirmed a successful local probe o
 RB760iGS / 7.24.4 after correcting the API source-IP restriction and later confirmed
 live port activity/statistics in UniFi. Detailed counter accuracy and optional warnings
 remain unreviewed. M3 client visibility on that hardware is now user-confirmed;
-M4 hardware neighbor collection and browser topology rendering remain unverified.
+M4 deployment success is now user-reported; exact neighbor values/browser topology
+and M5 CRS hardware collection remain unverified.

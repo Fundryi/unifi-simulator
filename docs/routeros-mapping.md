@@ -1,4 +1,4 @@
-# RouterOS mapping — M2–M4 implementation and later work
+# RouterOS mapping — M2–M5 implementation and later work
 
 Synthetic adoption was demonstrated in M0/M1. M2 now implements read-only native
 RouterOS 7.24+ API collection and vendor-neutral normalization; M3 adds
@@ -6,7 +6,8 @@ RouterOS 7.24+ API collection and vendor-neutral normalization; M3 adds
 [neighbor evidence and LLDP export](topology.md). See [deployment](routeros.md).
 No RouterOS writes exist. The user confirmed a successful RB760iGS 7.24.4 probe;
 live port activity/statistics and M3 wired clients in UniFi are also user-confirmed.
-M4 hardware neighbor collection remains unverified.
+M4 deployment success is user-reported. M5 adds independent CRS326 collection and
+a 26-slot profile; actual CRS hardware readings remain unverified.
 
 Use verified API-SSL or the user's explicitly requested LAN API on 8728 with a dedicated read-only account,
 restrict it to the collector source IP and grant only required read/API permissions.
@@ -17,7 +18,7 @@ Exact permissions and endpoint support must be verified on the target RouterOS b
 | Normalized entity | Proposed source | Required handling |
 | --- | --- | --- |
 | NetworkDevice / DeviceHealth | system identity/resource | M2: version, uptime, CPU/memory; unknown health stays unknown |
-| PhysicalPort | interface/ethernet and monitor | M2: explicit slot/name mapping; missing speed/duplex stays unknown |
+| PhysicalPort | interface/ethernet and monitor | Explicit profile/slot/name map; M5 adds CRS326 slots 1–26, SFP+ 25/26 at up to 10 Gb; missing speed/duplex stays unknown |
 | LogicalInterface | interface kinds, bridge/port, vlan, bonding | M2: parent/member inventory; configured offload separated from observed active flag |
 | TrafficCounters | interface stats | M2: absolute RX/TX bytes, device uptime, reset warning; no guessed rates |
 | VLAN | bridge/vlan and bridge/port | M3: compact VID ranges, configured/current tagged/untagged and dynamic membership, scoped enrichment |

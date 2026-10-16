@@ -192,3 +192,20 @@ post-adoption exchanges for **a lab switch and controller you own**, recording m
 firmware, packet flags and field names/types. Keep raw captures/private keys offline;
 they may contain credentials. Use fresh synthetic identities in public fixtures.
 Never modify a production controller database or impersonate a physical device.
+
+## 11. M5 profiles and gateway/WAN feasibility on 10.6.106
+
+TNBU's inspected model list names `US24PRO2` as the non-PoE UniFi Switch Pro 24 and
+`UGW3` as UniFi Security Gateway. M5 adds an explicit Switch Pro 24 profile (candidate
+firmware 6.6.61.15153, 24 gigabit + two 10 Gb slots), rather than a generic model
+substitution field. The isolated controller accepted its 26-slot port data and
+FDB/LLDP on slots 24/26 alongside the independent US8 device. Physical CRS behavior
+and topology graph rendering still need local validation.
+
+The inspected MIT gateway source's `unifi_protocol.py` / `tools.get_if_table` supplies
+wire-field evidence for `config_port_table` (ifname/name/type), `uplink` and `if_table`
+(name/link/IP/byte counters). An independent synthetic experiment using those field
+facts reached Connected as `UGW3` and produced nonzero controller `wan1` RX/TX rates.
+No upstream implementation was copied and no physical WAN state was read. Switch
+port tables alone do not establish WAN telemetry support. See [gateway assessment](gateway-wan.md)
+and [executed validation](validation.md) for the limits; no gateway adapter is shipped in M5.

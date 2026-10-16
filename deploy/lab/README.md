@@ -13,6 +13,9 @@ from FDB with optional ARP/DHCP enrichment. Rebuild/recreate the emulator with t
 files and identity; no additional write permissions or re-adoption are needed.
 It also enables [M4 neighbor provenance and LLDP](../../docs/topology.md) from the
 existing RouterOS neighbor cache, preserving incomplete/MNDP/CDP evidence in diagnostics.
+To add the CRS326 at 192.168.0.251, merge `compose.multidevice.yml` as the third file;
+see [M5 multi-device setup](../../docs/multi-device.md) for its separate username,
+secret and state. The original RB service/adoption remains intact.
 
 ```mermaid
 flowchart LR

@@ -1,8 +1,76 @@
 # Executed validation — latest 2026-10-16
 
+## Milestone 5: independent devices and CRS326 profile — 2026-10-16
+
+The user reported the M4 deployment working before requesting M5, with a second
+CRS326 target at 192.168.0.251. The cloud TCP attempt to 192.168.0.251:8728 was
+refused; no physical CRS credentials/readings were available. RouterOS data below
+comes from independent native API peers, not the actual CRS. The existing user RB
+adoption volume/controller was never modified by these experiments.
+
+Final automated result with Docker opt-in: **233 passed, 1 skipped** (the separate
+real-controller pytest opt-in). The regular suite completed with **230 passed,
+4 skipped**. Docker checks include US8 TCP/TLS and the 26-slot profile over verified
+TLS. Inventory checks cover
+path/symlink overlap, duplicate identity/address/endpoint rejection, environment
+isolation, targeted commands, corrupt state isolation and profile/target guards.
+Native wire tests retain 26 ports, 10 Gb links, large integer counters, FDB clients
+and LLDP on SFP+ slot 26. Process tests use two different passwords/keys and prove
+healthy informs continue through the other device's failed start and SIGKILL, then
+recover under the same key. SIGTERM releases both state locks; a subsequent fleet
+`--once` reuses GCM identities. Aggregated diagnostics/health do not create missing
+state or rewrite existing identity files.
+
+An additional production-image, UID-10001/read-only-root check ran the **inventory
+supervisor inside one container**, using two RouterOS peers (TCP and verified TLS),
+separate mounted secrets, and separate child state directories. Two container
+recreations retained distinct keys and switched both devices from CBC to GCM;
+aggregate diagnose, health and probe passed with 6/26 observed physical ports.
+
+The isolated UniFi 10.6.106 experiment used two independent production containers:
+US8 plus `US24PRO2`. Both reached Connected simultaneously. The controller retained
+8/26 slots, 10,000 Mb/s links on slots 25/26, LLDP on slot 26 and client associations
+on RB port 2 and CRS ports 24/26. Breaking the CRS API stream retained its key while
+RB health and successful-inform timestamps continued advancing. Recreating the CRS
+container with its original volume restored healthy source/inform exchange under
+the same MAC and retained private key; the RB identity remained unchanged.
+
+Ruff lint/format, the Docker build and merged three-file Compose validation passed.
+The final image also passed the existing synthetic Docker smoke (GCM, persisted
+identity, scenario clients/LLDP, health and UID). No dependencies or lockfile changed.
+Windows secret creation now avoids POSIX-only permission calls and writes UTF-8/LF;
+its Windows branch was not executed in this Linux environment.
+
+Initial Docker checks caught mode-0600 public example files created in this cloud:
+UID 10001 could not read the new map, correctly reporting `port-map-invalid`.
+Public map/inventory permissions were corrected to 0644 before rerunning. An early
+lab recreation also hit Docker's asynchronous `--rm` name-removal race; the harness
+now gives the recreated container a fresh name while retaining the same state volume. These were
+cloud/harness failures, not accepted passing runs or reasons to disable assertions.
+No private traces, credentials, controller keys or database edits are included.
+Browser rendering and actual CRS hardware remain unverified. Deployment and profile
+limits are in [multi-device setup](multi-device.md).
+
+## Gateway/WAN feasibility experiment — 2026-10-16
+
+A separate fresh synthetic `UGW3` device, using candidate firmware 4.4.57.5578372,
+adopted in UniFi 10.6.106 with a newly issued private key and GCM, reached Connected
+and was classified `type=ugw`. Device-side `config_port_table`, `if_table` counters
+and `uplink=eth0` were consumed into controller `wan1`. The observed sample had
+RX=2,500,000 / TX=500,000 bytes and nonzero derived rates (about 117,261 RX and
+23,452 TX bytes/s), from nominal fixture increments 125,000 / 25,000 bytes/s.
+Integer elapsed sampling/controller timing explains why this is not an exact-rate
+calibration. No live WAN interface, route, internet/latency/speed-test or browser
+history was tested. Only the experiment's own synthetic gateway was adopted/deleted.
+
+This establishes feasibility for a separate gateway adapter, not a shipped gateway
+profile or a migration of the user's RB. M5 preserves its existing US8 identity.
+See [the recommendation, required observations and migration contract](gateway-wan.md).
+
 ## Milestone 4: observed neighbors and topology provenance — 2026-10-16
 
-Before requesting M4, the user confirmed deployment and visible M3 clients on their
+The user later reported the M4 deployment working before requesting M5.
+Before requesting M4, they confirmed deployment and visible M3 clients on their
 RB760iGS / RouterOS 7.24.4. M4 itself was checked against independent native API
 TCP/TLS fixtures and the actual isolated UniFi 10.6.106 controller, using the production
 Docker image. RouterOS neighbor data in this experiment was synthetic API fixture

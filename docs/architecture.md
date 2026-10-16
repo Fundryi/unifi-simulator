@@ -1,6 +1,6 @@
 # Architecture and milestone boundary
 
-M0–M4 implement a single emulator using outbound UniFi device protocol, with either
+M0–M5 implement device emulators using outbound UniFi device protocol, with either
 synthetic telemetry or read-only RouterOS collection. There is no dashboard,
 controller API facade or automatic network discovery.
 
@@ -27,7 +27,9 @@ CLI, safe diagnostics and health command. A state volume survives process/contai
 native API sentences, verified TLS or explicit plaintext TCP, and a hard command
 allowlist. `routeros.py` collects/normalizes observations with an explicit port map,
 bounded polling and reconnect backoff. `snapshot.py` keeps vendor-neutral models and
-maps up to eight physical ports into the existing US8 slots.
+maps physical observations into the selected profile: eight US8 slots or 26
+Switch Pro 24 slots. `profiles.py` provides explicit model/firmware candidates and
+per-slot capacity; changing a model does not happen by guessing from a target address.
 `clients.py` correlates FDB identity/attachment with scoped optional ARP/DHCP metadata,
 excludes local MACs and tracks continuous observations without persisting client history.
 `neighbors.py` normalizes RouterOS neighbor-cache evidence, preserves protocol/port
@@ -55,8 +57,13 @@ versus authoritative empty FDB. A source gap clears observation timing; MAC tabl
 are omitted on FDB failure while port informs continue. Neighbor inventories similarly
 distinguish unavailable from empty, retaining partial invalid evidence diagnostically.
 See `topology.md` for provenance and conservative export rules. One Emulator/Store per device isolates keys,
-controller state, collectors and reconnect handling. Only one process/device is exposed
-by the CLI; multi-device orchestration is deliberately deferred.
+controller state, collectors and reconnect handling. `fleet.py` validates a bounded
+JSON inventory and supervises an independent instance of the normal CLI per device.
+It labels logs, isolates startup/crash/retry behavior, aggregates read-only diagnostics
+and stops workers on signals. Separate Compose services are the default two-device
+lab deployment; inventory CLI is an alternative. See `multi-device.md`.
+Persisted profile/RouterOS-host bindings prevent accidental identity reassignment;
+legacy controller-bound states are recognized as US8. Private keys never enter inventory.
 
 The scenario file is mounted as part of a read-only directory. Invalid runtime edits
 retain the last valid in-memory scenario; invalid initial configuration fails startup.
