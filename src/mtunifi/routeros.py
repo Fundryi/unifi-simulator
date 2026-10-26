@@ -314,6 +314,8 @@ class RouterOSSource:
                     snapshot,
                     age_seconds=max(0, int(now - self._observed_mono)),
                     port_count=profile(self.settings.profile).port_count,
+                    uplink_mac=self.settings.uplink_mac,
+                    uplink_remote_port=self.settings.uplink_remote_port,
                 )
             )
         clients = snapshot.wired.clients if snapshot and snapshot.wired else None

@@ -20,6 +20,10 @@ class Settings(BaseModel):
     # Reported firmware; set it to what the controller offers for the model so it
     # stops showing "update available" (the emulator cannot upgrade).
     firmware_version: str | None = Field(default=None, min_length=1, max_length=64)
+    # Uplink as the controller knows it. LLDP may show a per-port chassis id that
+    # differs from the parent's device MAC, and a port name instead of its index.
+    uplink_mac: str | None = Field(default=None, pattern=r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
+    uplink_remote_port: int | None = Field(default=None, ge=1, le=256)
     packet_version: int = Field(default=1, ge=0, le=1)
     encryption: str = "cbc"
     interval: float = Field(default=10, ge=1, le=300)
@@ -135,6 +139,16 @@ class Settings(BaseModel):
     def valid_profile(cls, value: str) -> str:
         profile(value)
         return value
+
+    @field_validator("uplink_mac", mode="before")
+    @classmethod
+    def lower_mac(cls, value):
+        return None if value in ("", None) else str(value).lower()
+
+    @field_validator("uplink_remote_port", mode="before")
+    @classmethod
+    def optional_port(cls, value):
+        return None if value == "" else value
 
     @field_validator("firmware_version")
     @classmethod

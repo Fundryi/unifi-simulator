@@ -152,7 +152,14 @@ class DeviceSnapshot:
         return asdict(self)
 
 
-def unifi_snapshot(snapshot: DeviceSnapshot, *, age_seconds: int = 0, port_count: int = 8) -> dict:
+def unifi_snapshot(
+    snapshot: DeviceSnapshot,
+    *,
+    age_seconds: int = 0,
+    port_count: int = 8,
+    uplink_mac: str | None = None,
+    uplink_remote_port: int | None = None,
+) -> dict:
     by_slot = {port.port_idx: port for port in snapshot.ports}
     clients_by_port: dict[int, list] = {i: [] for i in range(1, port_count + 1)}
     clients = snapshot.wired.clients if snapshot.wired is not None else None
@@ -246,13 +253,15 @@ def unifi_snapshot(snapshot: DeviceSnapshot, *, age_seconds: int = 0, port_count
             uplink = {
                 "type": "wire",
                 "port_idx": port.port_idx,
-                "uplink_mac": on_uplink[0]["chassis_id"],
+                "uplink_mac": uplink_mac or on_uplink[0]["chassis_id"],
                 "up": True,
                 "full_duplex": port.full_duplex is not False,
             }
             if port.speed_mbps is not None:
                 uplink["speed"] = port.speed_mbps
-            if on_uplink[0]["port_id"].isdigit():
+            if uplink_remote_port is not None:
+                uplink["uplink_remote_port"] = uplink_remote_port
+            elif on_uplink[0]["port_id"].isdigit():
                 uplink["uplink_remote_port"] = int(on_uplink[0]["port_id"])
             body["uplink"] = uplink
     return body

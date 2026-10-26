@@ -149,3 +149,11 @@ def test_uplink_claimed_only_from_the_mapped_uplink_port():
     numbered = scene([row(**{"interface-name": "7"})])
     body = unifi_snapshot(replace(numbered, ports=ports))
     assert body["uplink"]["uplink_remote_port"] == 7
+
+
+def test_uplink_overrides_replace_lldp_values():
+    snapshot = scene([row()])
+    ports = tuple(replace(p, is_uplink=p.port_idx == 2) for p in snapshot.ports)
+    body = unifi_snapshot(replace(snapshot, ports=ports), uplink_mac=B, uplink_remote_port=7)
+    assert body["uplink"]["uplink_mac"] == B
+    assert body["uplink"]["uplink_remote_port"] == 7
