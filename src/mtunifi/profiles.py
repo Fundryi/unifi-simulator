@@ -31,9 +31,10 @@ PROFILES = {
         (1000,) * 24 + (10000,) * 2,
     ),
     # USW-Aggregation: 8x SFP+ 10G, no copper. Fits an 8-port SFP+ RouterOS switch.
+    # Model string per https://static.ui.com/fingerprint/ui/public.json (sysid ed2d).
     "usw-aggregation-experimental": DeviceProfile(
         "usw-aggregation-experimental",
-        "USAGG",
+        "USL8A",
         "UniFi Switch Aggregation",
         "7.5.15.17146",
         "5.13.10",
