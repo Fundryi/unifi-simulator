@@ -1,5 +1,6 @@
 import ipaddress
 import os
+import re
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
@@ -16,6 +17,9 @@ class Settings(BaseModel):
     device_ip: str = "192.0.2.10"
     hostname: str = Field(default="mtunifi-lab", pattern=r"^[A-Za-z0-9-]{1,63}$")
     profile: str = "us8-experimental"
+    # Reported firmware; set it to what the controller offers for the model so it
+    # stops showing "update available" (the emulator cannot upgrade).
+    firmware_version: str | None = Field(default=None, min_length=1, max_length=64)
     packet_version: int = Field(default=1, ge=0, le=1)
     encryption: str = "cbc"
     interval: float = Field(default=10, ge=1, le=300)
@@ -130,6 +134,15 @@ class Settings(BaseModel):
     @classmethod
     def valid_profile(cls, value: str) -> str:
         profile(value)
+        return value
+
+    @field_validator("firmware_version")
+    @classmethod
+    def valid_firmware_version(cls, value):
+        if value == "":
+            return None
+        if value is not None and not re.fullmatch(r"[0-9]+(\.[0-9]+){1,3}", value):
+            raise ValueError("Expected a dotted numeric firmware version")
         return value
 
     @classmethod
