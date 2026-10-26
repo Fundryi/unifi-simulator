@@ -131,3 +131,21 @@ def test_missing_description_and_age_not_invented():
     snapshot = scene([row(identity="", age="bad")])
     assert snapshot.neighbors.observations[0].age_seconds is None
     assert "chassis_descr" not in unifi_snapshot(snapshot)["lldp_table"][0]
+
+
+def test_uplink_claimed_only_from_the_mapped_uplink_port():
+    snapshot = scene([row()])
+    assert "uplink" not in unifi_snapshot(snapshot)
+    ports = tuple(replace(p, is_uplink=p.port_idx == 2) for p in snapshot.ports)
+    body = unifi_snapshot(replace(snapshot, ports=ports))
+    assert body["uplink"] == {
+        "type": "wire",
+        "port_idx": 2,
+        "uplink_mac": A,
+        "up": True,
+        "full_duplex": True,
+        "speed": 1000,
+    }
+    numbered = scene([row(**{"interface-name": "7"})])
+    body = unifi_snapshot(replace(numbered, ports=ports))
+    assert body["uplink"]["uplink_remote_port"] == 7

@@ -238,4 +238,21 @@ def unifi_snapshot(snapshot: DeviceSnapshot, *, age_seconds: int = 0, port_count
             if neighbor.system_description or neighbor.identity:
                 entry["chassis_descr"] = neighbor.system_description or neighbor.identity
             body["lldp_table"].append(entry)
+        # The controller draws the topology tree from `uplink`, not from lldp_table.
+        # Claim one only when the mapped uplink port has exactly one LLDP neighbor.
+        on_uplink = [e for e in body["lldp_table"] if by_slot[e["local_port_idx"]].is_uplink]
+        if len(on_uplink) == 1:
+            port = by_slot[on_uplink[0]["local_port_idx"]]
+            uplink = {
+                "type": "wire",
+                "port_idx": port.port_idx,
+                "uplink_mac": on_uplink[0]["chassis_id"],
+                "up": True,
+                "full_duplex": port.full_duplex is not False,
+            }
+            if port.speed_mbps is not None:
+                uplink["speed"] = port.speed_mbps
+            if on_uplink[0]["port_id"].isdigit():
+                uplink["uplink_remote_port"] = int(on_uplink[0]["port_id"])
+            body["uplink"] = uplink
     return body
