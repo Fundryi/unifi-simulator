@@ -30,6 +30,15 @@ PROFILES = {
         "5.13.10",
         (1000,) * 24 + (10000,) * 2,
     ),
+    # USW-Aggregation: 8x SFP+ 10G, no copper. Fits an 8-port SFP+ RouterOS switch.
+    "usw-aggregation-experimental": DeviceProfile(
+        "usw-aggregation-experimental",
+        "USAGG",
+        "UniFi Switch Aggregation",
+        "7.5.15.17146",
+        "5.13.10",
+        (10000,) * 8,
+    ),
     "ugw3-experimental": DeviceProfile(
         "ugw3-experimental",
         "UGW3",
