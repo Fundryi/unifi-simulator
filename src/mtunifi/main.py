@@ -167,7 +167,7 @@ def main() -> int:
             raise ValueError("Use probe-routeros for observed telemetry")
         source = create_source(settings) if args.command != "init" else None
         with store.lock():
-            state = store.load_or_create()
+            state = store.load_or_create(settings.device_mac)
             state.bind(
                 settings.profile,
                 settings.routeros_host if settings.telemetry_source == "routeros" else None,

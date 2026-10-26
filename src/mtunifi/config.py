@@ -23,6 +23,10 @@ class Settings(BaseModel):
     # Uplink as the controller knows it. LLDP may show a per-port chassis id that
     # differs from the parent's device MAC, and a port name instead of its index.
     uplink_mac: str | None = Field(default=None, pattern=r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
+    # Identity MAC for a NEW state only. Use the RouterOS device's own bridge MAC so the
+    # controller can match the parent switch's LLDP/MAC tables and place the device in
+    # its topology. Only for hardware you own; never a MAC of equipment you do not run.
+    device_mac: str | None = Field(default=None, pattern=r"^[0-9a-f]{2}(:[0-9a-f]{2}){5}$")
     uplink_remote_port: int | None = Field(default=None, ge=1, le=256)
     packet_version: int = Field(default=1, ge=0, le=1)
     encryption: str = "cbc"
@@ -140,7 +144,7 @@ class Settings(BaseModel):
         profile(value)
         return value
 
-    @field_validator("uplink_mac", mode="before")
+    @field_validator("uplink_mac", "device_mac", mode="before")
     @classmethod
     def lower_mac(cls, value):
         return None if value in ("", None) else str(value).lower()

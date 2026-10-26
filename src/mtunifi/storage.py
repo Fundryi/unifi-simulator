@@ -60,8 +60,10 @@ class State(BaseModel):
     @classmethod
     def valid_mac(cls, value: str) -> str:
         raw = bytes.fromhex(value.replace(":", ""))
-        if len(raw) != 6 or raw[0] & 3 != 2:
-            raise ValueError("Identity must be a locally administered unicast MAC")
+        # Generated identities are locally administered; an explicit device_mac may be
+        # the real hardware MAC, so only unicast is enforced here.
+        if len(raw) != 6 or raw[0] & 1:
+            raise ValueError("Identity must be a unicast MAC")
         return ":".join(f"{b:02x}" for b in raw)
 
     @field_validator("authkey")
@@ -109,12 +111,14 @@ class Store:
     def load(self) -> State:
         return State.model_validate_json(self.path.read_bytes())
 
-    def load_or_create(self) -> State:
+    def load_or_create(self, mac: str | None = None) -> State:
         if self.path.exists():
             return self.load()  # Corrupt state must never silently create a new identity.
-        mac = bytearray(secrets.token_bytes(6))
-        mac[0] = (mac[0] | 2) & 254
-        state = State(mac=":".join(f"{b:02x}" for b in mac))
+        if mac is None:
+            generated = bytearray(secrets.token_bytes(6))
+            generated[0] = (generated[0] | 2) & 254
+            mac = ":".join(f"{b:02x}" for b in generated)
+        state = State(mac=mac)
         self.save(state)
         return state
 
