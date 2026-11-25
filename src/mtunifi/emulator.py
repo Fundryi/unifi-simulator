@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 import time
 
 import httpx
@@ -17,6 +18,8 @@ from mtunifi.telemetry import inform
 from mtunifi.transport import advertised_inform_url
 
 logger = logging.getLogger("mtunifi")
+FIRMWARE = re.compile(r"[0-9]+(\.[0-9]+){1,3}")
+UPGRADE_COMMANDS = ("upgrade", "upgrade-external")
 
 
 def event(name: str, **fields):
@@ -82,6 +85,16 @@ def apply_response(state: State, response: dict) -> float | None:
         state.reset_adoption()
         event("adoption_reset", reason="controller", mac=state.mac)
         return 1
+    if kind == "upgrade" or (kind == "cmd" and response.get("cmd") in UPGRADE_COMMANDS):
+        version = response.get("version")
+        if isinstance(version, str) and FIRMWARE.fullmatch(version):
+            # Nothing is downloaded or flashed. Reporting the offered version is what a
+            # switch does after its upgrade reboot, so the controller marks it current.
+            state.firmware_version = version
+            event("firmware_upgrade_accepted", version=version)
+            return 1
+        event("firmware_upgrade_ignored", reason="no valid version in command")
+        return None
     event("unsupported_message", action="ignored")
     return None
 

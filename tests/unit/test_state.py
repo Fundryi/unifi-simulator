@@ -111,3 +111,23 @@ def test_invalid_intervals(tmp_path, interval):
         apply_response(Store(tmp_path).load_or_create(), {"_type": "noop", "interval": interval})
         is None
     )
+
+
+def test_controller_upgrade_sets_the_reported_firmware(tmp_path):
+    from mtunifi.config import Settings
+    from mtunifi.telemetry import inform
+
+    store = Store(tmp_path)
+    state = store.load_or_create()
+    command = {"_type": "upgrade", "url": "https://fw.example/x.bin", "version": "7.6.11.17272"}
+    assert apply_response(state, command) == 1
+    store.save(state)
+    state = store.load()
+    assert state.firmware_version == "7.6.11.17272"
+    pinned = Settings(firmware_version="7.5.15.17146")
+    assert inform(pinned, state, 1)["version"] == "7.6.11.17272"
+    assert apply_response(state, {"_type": "upgrade", "version": "7.7; rm -rf /"}) is None
+    assert apply_response(state, {"_type": "upgrade"}) is None
+    assert state.firmware_version == "7.6.11.17272"
+    apply_response(state, {"_type": "cmd", "cmd": "upgrade", "version": "7.7.1.1"})
+    assert state.firmware_version == "7.7.1.1"

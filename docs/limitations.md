@@ -50,7 +50,9 @@ remains separate from controller API validation. See `synthetic-telemetry.md` fo
 - Client/LLDP API presence does not prove topology graph or traffic-chart UI rendering.
 - No UDP 10001 discovery, inbound SSH adoption, STUN or remote shell.
 - Snappy and packet/data versions outside the documented subset are rejected.
-- Controller system configuration, upgrades, reboot and executable commands are ignored.
+- Controller system configuration, reboot and executable commands are ignored. An upgrade
+  command that carries a version is accepted as completed: nothing is downloaded or
+  flashed, the version is stored in the state and reported from then on.
   The controller can keep provisioning/retrying if it requires those effects.
 - Private-key `setdefault` resets only local adoption metadata. Offline deletion
   in the controller requires explicit `reset-adoption`; HTTP 400 never clears keys.

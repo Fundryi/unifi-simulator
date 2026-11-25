@@ -17,8 +17,8 @@ class Settings(BaseModel):
     device_ip: str = "192.0.2.10"
     hostname: str = Field(default="mtunifi-lab", pattern=r"^[A-Za-z0-9-]{1,63}$")
     profile: str = "us8-experimental"
-    # Reported firmware; set it to what the controller offers for the model so it
-    # stops showing "update available" (the emulator cannot upgrade).
+    # Reported firmware until the controller sends an upgrade command; after that the
+    # version from that command is kept in the state and wins over this setting.
     firmware_version: str | None = Field(default=None, min_length=1, max_length=64)
     # Uplink as the controller knows it. LLDP may show a per-port chassis id that
     # differs from the parent's device MAC, and a port name instead of its index.

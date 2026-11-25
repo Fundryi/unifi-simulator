@@ -31,6 +31,8 @@ class State(BaseModel):
     last_error: str | None = None
     profile: str | None = None
     routeros_host: str | None = Field(default=None, pattern=r"^[A-Za-z0-9.:-]{1,253}$")
+    # Firmware from the last accepted controller upgrade command; reported from then on.
+    firmware_version: str | None = Field(default=None, pattern=r"^[0-9]+(\.[0-9]+){1,3}$")
 
     @field_validator("profile")
     @classmethod

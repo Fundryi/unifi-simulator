@@ -24,7 +24,7 @@ def inform(
     return {
         "model": device_profile.model,
         "model_display": device_profile.display,
-        "version": settings.firmware_version or device_profile.version,
+        "version": state.firmware_version or settings.firmware_version or device_profile.version,
         "required_version": device_profile.required_version,
         "mac": state.mac,
         "serial": state.mac.replace(":", "").upper(),
