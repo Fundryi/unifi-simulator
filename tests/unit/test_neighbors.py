@@ -157,3 +157,14 @@ def test_uplink_overrides_replace_lldp_values():
     body = unifi_snapshot(replace(snapshot, ports=ports), uplink_mac=B, uplink_remote_port=7)
     assert body["uplink"]["uplink_mac"] == B
     assert body["uplink"]["uplink_remote_port"] == 7
+
+
+def test_port_macs_are_claimed_in_ethernet_table():
+    snapshot = scene([row()])
+    ports = tuple(replace(p, mac=f"02:00:00:00:00:{p.port_idx:02X}") for p in snapshot.ports) + (
+        replace(snapshot.ports[0], port_idx=9, mac="02:00:00:00:00:01"),
+    )
+    table = unifi_snapshot(replace(snapshot, ports=ports))["ethernet_table"]
+    expected = ["02:00:00:00:00:01", "02:00:00:00:00:02", "02:00:00:00:00:03"]
+    assert [e["mac"] for e in table] == expected
+    assert table[1]["name"] == "ether2"

@@ -217,6 +217,16 @@ def unifi_snapshot(
     if health.memory_total_bytes and health.memory_free_bytes is not None:
         stats["mem"] = f"{100 * (1 - health.memory_free_bytes / health.memory_total_bytes):.1f}"
     body = {"port_table": ports, "uptime": health.uptime_seconds}
+    # Every physical port has its own MAC. A parent switch sees e.g. the uplink port's
+    # MAC on its downlink (LLDP frames carry it) and the controller lists it as a client
+    # of this device unless the device claims it here, as real devices do.
+    own = []
+    for port in snapshot.ports:
+        mac = port.mac.lower() if port.mac else None
+        if mac and mac not in {e["mac"] for e in own}:
+            own.append({"mac": mac, "name": port.name, "num_port": 1})
+    if own:
+        body["ethernet_table"] = own
     if stats:
         body["system-stats"] = stats
     neighbors = (
